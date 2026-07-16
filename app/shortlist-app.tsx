@@ -29,7 +29,7 @@ type ConnectionStatus = {
 };
 
 type Profile = {
-  targetTitle: string;
+  targetTitles: string[];
   location: string;
   minSalary: string;
   workModes: string[];
@@ -39,7 +39,7 @@ type Profile = {
 };
 
 const initialProfile: Profile = {
-  targetTitle: "Software Engineer",
+  targetTitles: [],
   location: "New York, NY",
   minSalary: "100000",
   workModes: ["Remote", "Hybrid"],
@@ -148,7 +148,7 @@ function formatSalary(value: string) {
 export function ShortlistApp() {
   const [profile, setProfile] = useState(initialProfile);
   const [draftProfile, setDraftProfile] = useState(initialProfile);
-  const [jobs, setJobs] = useState(sampleJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "saved" | "applied">("today");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -182,14 +182,18 @@ export function ShortlistApp() {
 
   const resumePercent = profile.resumeText.trim().length > 120 ? 100 : profile.resumeText.trim() ? 55 : 0;
 
-  async function findJobs() {
+  async function findJobs(searchProfile = profile) {
+    if (!searchProfile.targetTitles.length) {
+      setNotice("Save at least one job title before starting a search.");
+      return;
+    }
     setIsSearching(true);
     setNotice("");
     try {
       const response = await fetch("/api/jobs/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(searchProfile),
       });
       const data = await response.json();
       if (Array.isArray(data.jobs) && data.jobs.length) setJobs(data.jobs);
@@ -208,18 +212,21 @@ export function ShortlistApp() {
   }
 
   async function saveProfile() {
-    if (!draftProfile.targetTitle.trim()) {
+    const targetTitles = draftProfile.targetTitles.map((title) => title.trim()).filter(Boolean);
+    if (!targetTitles.length) {
       setSettingsError("Add at least one target job title.");
       return;
     }
-    setProfile(draftProfile);
+    const savedProfile = { ...draftProfile, targetTitles };
+    setProfile(savedProfile);
     setSettingsOpen(false);
-    setNotice("Search profile saved.");
-    fetch("/api/profile", {
+    setNotice("Search profile saved. Finding matching jobs and preparing cover letters…");
+    await fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draftProfile),
+      body: JSON.stringify(savedProfile),
     }).catch(() => undefined);
+    void findJobs(savedProfile);
   }
 
   async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
@@ -297,15 +304,15 @@ export function ShortlistApp() {
         <section className="workspace">
           <aside className="profile-card">
             <div className="section-heading"><span>Search settings</span><button onClick={openSettings}>Edit</button></div>
-            <div className="profile-role">{profile.targetTitle}</div>
+            <div className="profile-role">{profile.targetTitles.length ? profile.targetTitles.join(" · ") : "Add job titles"}</div>
             <div className="profile-list">
               <div><span>Location</span><strong>{profile.location || "Anywhere"}</strong></div>
               <div><span>Work style</span><strong>{profile.workModes.join(" + ") || "Any"}</strong></div>
               <div><span>Minimum</span><strong>{formatSalary(profile.minSalary)}</strong></div>
               <div><span>Sources</span><strong><i className="source-mark linkedin">in</i><i className="source-mark indeed">i</i> LinkedIn + Indeed</strong></div>
             </div>
-            <button className="primary-button full" onClick={findJobs} disabled={isSearching}>
-              {isSearching ? "Fetching jobs and writing letters…" : "Refresh jobs"}
+            <button className="primary-button full" onClick={openSettings} disabled={isSearching}>
+              {isSearching ? "Fetching jobs and writing letters…" : "Edit titles & search"}
               <span aria-hidden="true">→</span>
             </button>
             <p className="tiny-note">Placeholder records are marked Demo. No applications are submitted automatically.</p>
@@ -350,7 +357,7 @@ export function ShortlistApp() {
                 </article>
               ))}
               {!visibleJobs.length && (
-                <div className="empty-state"><span>＋</span><h3>Nothing here yet</h3><p>Save a role or mark an application to build this list.</p><button onClick={() => setActiveTab("today")}>Back to today</button></div>
+                <div className="empty-state"><span>＋</span><h3>{profile.targetTitles.length ? "Nothing here yet" : "Add your job titles"}</h3><p>{profile.targetTitles.length ? "Your saved titles did not return a matching role yet." : "Tell Shortlist the exact roles you want, then save to begin the search and prepare cover letters."}</p><button onClick={profile.targetTitles.length ? () => setActiveTab("today") : openSettings}>{profile.targetTitles.length ? "Back to today" : "Add job titles"}</button></div>
               )}
             </div>
           </div>
@@ -376,7 +383,7 @@ export function ShortlistApp() {
               <small>Add these as server environment variables using the setup guide in the project.</small>
             </div>
 
-            <label className="field"><span>General job title</span><input value={draftProfile.targetTitle} onChange={(event) => setDraftProfile({ ...draftProfile, targetTitle: event.target.value })} placeholder="e.g. Product Designer" /></label>
+            <label className="field"><span>Job titles</span><textarea className="job-titles-input" value={draftProfile.targetTitles.join("\n")} onChange={(event) => setDraftProfile({ ...draftProfile, targetTitles: event.target.value.split("\n") })} placeholder={"One exact title per line\ne.g. Product Designer\ne.g. UX Designer"} rows={4} /><small>JSearch runs a separate search for each title when you save.</small></label>
             <div className="field-grid">
               <label className="field"><span>Location</span><input value={draftProfile.location} onChange={(event) => setDraftProfile({ ...draftProfile, location: event.target.value })} placeholder="City or Anywhere" /></label>
               <label className="field"><span>Minimum salary</span><input type="number" value={draftProfile.minSalary} onChange={(event) => setDraftProfile({ ...draftProfile, minSalary: event.target.value })} placeholder="100000" /></label>
@@ -391,7 +398,7 @@ export function ShortlistApp() {
 
             <div className="daily-row"><div><span className="status-dot neutral" /><strong>Preferred run time</strong><small>Saved only; automation is not connected</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>
             {settingsError && <p className="form-error">{settingsError}</p>}
-            <div className="drawer-footer"><button className="secondary-button" onClick={() => setSettingsOpen(false)}>Cancel</button><button className="primary-button" onClick={saveProfile}>Save profile <span>→</span></button></div>
+            <div className="drawer-footer"><button className="secondary-button" onClick={() => setSettingsOpen(false)}>Cancel</button><button className="primary-button" onClick={saveProfile}>Save & search <span>→</span></button></div>
           </section>
         </div>
       )}

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   return Response.json({
     configured: true,
     profile: {
-      targetTitle: row.target_title,
+      targetTitles: String(row.target_title || "").split("\n").map((title) => title.trim()).filter(Boolean),
       location: row.location,
       minSalary: row.min_salary ? String(row.min_salary) : "",
       workModes: row.work_modes,
@@ -24,12 +24,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  if (!body.targetTitle?.trim()) return Response.json({ error: "Target title is required." }, { status: 400 });
+  const targetTitles = Array.isArray(body.targetTitles)
+    ? body.targetTitles.map((title) => String(title).trim()).filter(Boolean).slice(0, 8)
+    : String(body.targetTitle || "").split("\n").map((title) => title.trim()).filter(Boolean).slice(0, 8);
+  if (!targetTitles.length) return Response.json({ error: "At least one job title is required." }, { status: 400 });
   if (!supabaseConfigured()) return Response.json({ configured: false, saved: false });
 
   await upsertRows("profiles?on_conflict=owner_email", {
     owner_email: ownerEmail(request),
-    target_title: String(body.targetTitle).slice(0, 180),
+    target_title: targetTitles.join("\n").slice(0, 180),
     location: String(body.location || "").slice(0, 180),
     min_salary: Number(body.minSalary) || null,
     work_modes: Array.isArray(body.workModes) ? body.workModes.slice(0, 3) : [],

@@ -75,12 +75,12 @@ async function attachLetters(jobs: Array<Omit<Job, "coverLetter">>, resumeText: 
   );
 }
 
-async function saveJobs(request: Request, jobs: Job[], title: string, location: string) {
+async function saveJobs(request: Request, jobs: Job[], titles: string[], location: string) {
   if (!supabaseConfigured()) return;
   const email = ownerEmail(request);
   await upsertRows("profiles?on_conflict=owner_email", {
     owner_email: email,
-    target_title: title,
+    target_title: titles.join("\n"),
     location,
     updated_at: new Date().toISOString(),
   }, "owner_email");
@@ -105,27 +105,33 @@ async function saveJobs(request: Request, jobs: Job[], title: string, location: 
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const title = String(body.targetTitle || "Software Engineer").slice(0, 180);
+  const titles = (Array.isArray(body.targetTitles) ? body.targetTitles : [body.targetTitle])
+    .map((title) => String(title || "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
   const location = String(body.location || "United States").slice(0, 180);
   const resumeText = String(body.resumeText || "").slice(0, 30000);
   const apiKey = process.env.JSEARCH_API_KEY;
 
+  if (!titles.length) return Response.json({ error: "Save at least one job title before searching." }, { status: 400 });
+
   if (!apiKey) return Response.json({ mode: "demo", jobs: demoJobs });
 
-  const params = new URLSearchParams({
-    query: `${title} jobs in ${location} from LinkedIn and Indeed`,
-    page: "1",
-    num_pages: "1",
-    date_posted: "week",
-  });
-  const response = await fetch(`https://jsearch.p.rapidapi.com/search?${params}`, {
-    headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" },
-  });
-  if (!response.ok) return Response.json({ error: "The job provider is temporarily unavailable." }, { status: 502 });
-
-  const payload = (await response.json()) as { data?: ProviderJob[] };
-  const normalized = (payload.data || []).slice(0, 6).map(normalize);
+  const results = await Promise.all(titles.map(async (title) => {
+    const params = new URLSearchParams({ query: `${title} jobs in ${location} from LinkedIn and Indeed`, page: "1", num_pages: "1", date_posted: "week" });
+    const response = await fetch(`https://jsearch.p.rapidapi.com/search?${params}`, { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" } });
+    if (!response.ok) throw new Error("The job provider is temporarily unavailable.");
+    const payload = (await response.json()) as { data?: ProviderJob[] };
+    return payload.data || [];
+  }));
+  const seen = new Set<string>();
+  const normalized = results.flat().filter((job) => {
+    const id = String(job.job_id || "");
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  }).slice(0, 6).map(normalize);
   const jobs = await attachLetters(normalized, resumeText);
-  await saveJobs(request, jobs, title, location);
+  await saveJobs(request, jobs, titles, location);
   return Response.json({ mode: "live", jobs });
 }
