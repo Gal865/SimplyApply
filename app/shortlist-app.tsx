@@ -233,7 +233,7 @@ export function ShortlistApp() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="wordmark" href="#top" aria-label="Shortlist home">shortlist<span>.</span></a>
+        <a className="wordmark" href="#top" aria-label="Simply Apply home">Simply <span>Apply</span></a>
         <nav className="tabs" aria-label="Job views">
           {(["today", "saved", "applied"] as const).map((tab) => (
             <button key={tab} className={activeTab === tab ? "tab active" : "tab"} onClick={() => setActiveTab(tab)}>
@@ -268,7 +268,7 @@ export function ShortlistApp() {
             <div>
               <p className="eyebrow">Start here</p>
               <h2 id="title-setup-heading">What job are you looking for?</h2>
-              <p>Enter the actual title you want Shortlist to search for. This saves your preference only—it does not run a search or schedule anything.</p>
+              <p>Enter the actual title you want Simply Apply to search for. This saves your preference only—it does not run a search or schedule anything.</p>
             </div>
             <form onSubmit={saveInitialTitle}>
               <label htmlFor="initial-job-title">Job search title</label>
@@ -322,18 +322,19 @@ export function ShortlistApp() {
                 </article>
               ))}
               {!visibleJobs.length && (
-                <div className="empty-state"><span>＋</span><h3>{profile.targetTitles.length ? "Nothing here yet" : "Add your job titles"}</h3><p>{profile.targetTitles.length ? "Your saved titles did not return a matching role yet." : "Tell Shortlist the exact roles you want, then save to begin the search and prepare cover letters."}</p><button onClick={profile.targetTitles.length ? () => setActiveTab("today") : openSettings}>{profile.targetTitles.length ? "Back to today" : "Add job titles"}</button></div>
+                <div className="empty-state"><span>＋</span><h3>{profile.targetTitles.length ? "Nothing here yet" : "Add your job titles"}</h3><p>{profile.targetTitles.length ? "Your saved titles did not return a matching role yet." : "Tell Simply Apply the exact roles you want, then save to begin the search and prepare cover letters."}</p><button onClick={profile.targetTitles.length ? () => setActiveTab("today") : openSettings}>{profile.targetTitles.length ? "Back to today" : "Add job titles"}</button></div>
               )}
             </div>
           </div>
         </section>
       </main>
 
-      <footer><span>shortlist.</span><p>Private job workspace</p><button onClick={openSettings}>Connections & settings</button></footer>
+      <footer><span>Simply Apply</span><p>Private job workspace</p><button onClick={openSettings}>Connections & settings</button></footer>
 
       {settingsOpen && (
-        <div className={settingsClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={(event) => event.currentTarget === event.target && closeSettings()}>
-          <section className="drawer settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div className="dialog-root">
+          <div className={settingsClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={closeSettings} />
+          <section className={settingsClosing ? "drawer settings-drawer is-closing" : "drawer settings-drawer"} role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="drawer-header"><div><p className="eyebrow">Settings</p><h2 id="settings-title">Search profile</h2></div><button className="close-button" onClick={closeSettings} aria-label="Close">×</button></div>
             <p className="drawer-intro">These fields control job search, matching, and the cover letters prepared during refresh.</p>
 
@@ -369,8 +370,9 @@ export function ShortlistApp() {
       )}
 
       {selectedJob && (
-        <div className={letterClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={(event) => event.currentTarget === event.target && closeLetter()}>
-          <section className="drawer letter-drawer" role="dialog" aria-modal="true" aria-labelledby="letter-title">
+        <div className="dialog-root">
+          <div className={letterClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={closeLetter} />
+          <section className={letterClosing ? "drawer letter-drawer is-closing" : "drawer letter-drawer"} role="dialog" aria-modal="true" aria-labelledby="letter-title">
             <div className="drawer-header"><div><p className="eyebrow">Cover letter</p><h2 id="letter-title">{selectedJob.title}</h2><span>{selectedJob.company} · {selectedJob.location}</span></div><button className="close-button" onClick={closeLetter} aria-label="Close">×</button></div>
             <div className="letter-context">{selectedJob.isDemo && <span className="demo-label">Demo</span>}<span className={`source-pill ${selectedJob.source.toLowerCase()}`}>{selectedJob.source}</span><span>{selectedJob.match}% match estimate</span><span>{selectedJob.isDemo ? "Sample letter" : "OpenRouter"}</span></div>
             {selectedJob.isDemo && <div className="demo-warning">Demo letter. It is not based on your resume and is not ready to send.</div>}

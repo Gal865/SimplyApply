@@ -231,12 +231,13 @@ footer > span { font-family: Georgia, serif; font-size: 21px; font-weight: 700; 
 footer p { color: #7b7d83; font-family: Georgia, serif; font-size: 13px; }
 footer button { background: none; border: 0; color: var(--ink-soft); cursor: pointer; font-size: 11px; text-decoration: underline; }
 
-.overlay { align-items: stretch; animation: overlay-in .36s ease-out both; background: rgba(41, 48, 72, .28); display: flex; inset: 0; justify-content: flex-end; position: fixed; z-index: 50; backdrop-filter: blur(8px); }
-.overlay.is-closing { animation: overlay-out .26s ease-in both; pointer-events: none; }
-.drawer { animation: drawer-in .44s cubic-bezier(.22, .8, .2, 1) both; background: #faf8f4; box-shadow: -20px 0 60px rgba(36, 42, 60, .17); max-height: 100vh; overflow-y: auto; overscroll-behavior: contain; padding: 42px 44px; -webkit-overflow-scrolling: touch; width: min(620px, 100%); will-change: transform, opacity; }
-.overlay.is-closing .drawer { animation: drawer-out .26s cubic-bezier(.4, 0, 1, 1) both; }
-@keyframes overlay-in { from { background: rgba(41, 48, 72, 0); backdrop-filter: blur(0); } to { background: rgba(41, 48, 72, .28); backdrop-filter: blur(8px); } }
-@keyframes overlay-out { from { background: rgba(41, 48, 72, .28); backdrop-filter: blur(8px); } to { background: rgba(41, 48, 72, 0); backdrop-filter: blur(0); } }
+.dialog-root { inset: 0; isolation: isolate; pointer-events: none; position: fixed; z-index: 50; }
+.overlay { animation: overlay-in .2s ease-out both; background: rgba(41, 48, 72, .25); backdrop-filter: blur(3px); inset: 0; pointer-events: auto; position: absolute; }
+.overlay.is-closing { animation: overlay-out .18s ease-in both; pointer-events: none; }
+.drawer { animation: drawer-in .32s cubic-bezier(.22, .8, .2, 1) both; background: #faf8f4; bottom: 0; box-shadow: -20px 0 60px rgba(36, 42, 60, .17); contain: layout paint; height: 100vh; height: 100dvh; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: 42px 44px; pointer-events: auto; position: absolute; right: 0; scrollbar-gutter: stable; top: 0; width: min(620px, 100%); }
+.drawer.is-closing { animation: drawer-out .22s cubic-bezier(.4, 0, 1, 1) both; pointer-events: none; }
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes drawer-in { from { opacity: 0; transform: translate3d(44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 @keyframes drawer-out { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(28px, 0, 0); } }
 .drawer-header { align-items: flex-start; border-bottom: 1px solid rgba(229, 222, 213, .8); display: flex; justify-content: space-between; padding-bottom: 24px; }

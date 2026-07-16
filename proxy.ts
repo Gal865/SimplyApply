@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 function unauthorized(message = "Authentication required") {
   return new NextResponse(message, {
     status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Shortlist", charset="UTF-8"' },
+    headers: { "WWW-Authenticate": 'Basic realm="Simply Apply", charset="UTF-8"' },
   });
 }
 

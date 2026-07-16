@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Shortlist — job review workspace",
+  title: "Simply Apply — job review workspace",
   description: "Review matched jobs and prepared cover letters in one private workspace.",
 };
 
