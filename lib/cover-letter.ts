@@ -6,7 +6,7 @@ export type CoverLetterJob = {
 };
 
 export function demoCoverLetter(job: CoverLetterJob) {
-  return `DEMO COVER LETTER — not generated from your resume\n\nDear ${job.company || "Hiring Team"},\n\nI am writing to express my interest in the ${job.title || "open role"} position. This sample shows where a personalized letter will appear after OpenRouter and your resume are connected.\n\nIn the connected version, this section will cite only experience, skills, and results found in your resume, matched directly to the responsibilities in the job description. It will not invent qualifications or reuse this generic demo language.\n\nThank you for your consideration.\n\nSincerely,\n[Your name]`;
+  return `COVER LETTER DRAFT\n\nDear ${job.company || "Hiring Team"},\n\nI am writing to express my interest in the ${job.title || "open role"} position. This draft shows where a personalized letter will appear after OpenRouter and your resume are connected.\n\nOnce connected, this section will cite only experience, skills, and results found in your resume, matched directly to the responsibilities in the job description. It will not invent qualifications or reuse generic language.\n\nThank you for your consideration.\n\nSincerely,\n[Your name]`;
 }
 
 export async function createCoverLetter(job: CoverLetterJob, resumeText: string) {

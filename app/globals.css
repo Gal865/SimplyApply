@@ -88,18 +88,6 @@ button { color: inherit; }
 .resume-chip:hover { background: var(--card); box-shadow: 0 6px 16px rgba(70, 62, 52, .08); transform: translateY(-1px); }
 .resume-dot { background: var(--coral); border-radius: 50%; box-shadow: 0 0 0 4px #f5ddd7; height: 7px; width: 7px; }
 .topbar-actions { align-items: center; display: flex; gap: 10px; justify-self: end; }
-.demo-mode, .demo-label {
-  background: #f0e9e3;
-  border: 0;
-  border-radius: 999px;
-  color: #76635d;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 800;
-  letter-spacing: .1em;
-  padding: 5px 8px;
-  text-transform: uppercase;
-}
 
 main { margin: 0 auto; max-width: 1240px; padding: 0 4vw 104px; }
 .settings-topbar { grid-template-columns: 1fr auto 1fr; }
@@ -207,7 +195,6 @@ main { margin: 0 auto; max-width: 1240px; padding: 0 4vw 104px; }
 .company-tile { align-items: center; background: linear-gradient(145deg, #f2eee8, #e8e9ee); border: 0; border-radius: 18px; color: #515e7e; display: flex; font-family: Georgia, serif; font-size: 21px; font-weight: 700; height: 54px; justify-content: center; }
 .job-body { min-width: 0; }
 .job-topline { align-items: center; color: #92938f; display: flex; font-size: 10px; gap: 10px; margin-bottom: 9px; }
-.job-topline .demo-label { padding: 3px 6px; }
 .source-pill { align-items: center; border-radius: 999px; display: inline-flex; font-size: 9px; font-weight: 800; gap: 4px; letter-spacing: .03em; padding: 5px 8px; }
 .source-pill.linkedin { background: #e3edf9; color: #2867a9; }
 .source-pill.indeed { background: #ece9ff; color: #4a3ac4; }
@@ -302,7 +289,6 @@ footer button, footer a { background: none; border: 0; color: var(--ink-soft); c
 .letter-context > span:not(.source-pill) { border-left: 1px solid #c9c4ba; color: #70737e; font-size: 10px; padding-left: 9px; }
 .letter-paper { background: rgba(255, 254, 250, .88); border: 1px solid #e2dcd2; border-radius: 18px; color: #2b3043; font-family: Georgia, serif; font-size: 14px; line-height: 1.72; min-height: 480px; outline: none; padding: 40px 44px; resize: vertical; width: 100%; }
 .letter-note { color: #797b82; font-size: 10px; line-height: 1.5; }
-.demo-warning { background: #f0ece4; border-left: 3px solid #9b9286; color: #625d56; font-size: 11px; margin-bottom: 12px; padding: 10px 12px; }
 .letter-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .letter-loading { align-items: center; background: #fffefa; border: 1px solid #d6d0c4; display: flex; flex-direction: column; min-height: 470px; justify-content: center; text-align: center; }
 .letter-loading h3 { font-family: Georgia, serif; font-size: 23px; margin: 17px 0 6px; }
@@ -331,7 +317,6 @@ footer button, footer a { background: none; border: 0; color: var(--ink-soft); c
 @media (max-width: 720px) {
   .topbar { padding: 10px 18px 0; }
   .resume-chip { padding: 8px 10px; }
-  .demo-mode { display: none; }
   main { padding: 0 18px 65px; }
   .intro { padding: 43px 0 34px; }
   .intro h1 { font-size: 36px; }

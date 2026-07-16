@@ -118,9 +118,9 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
         setJobs(data.jobs);
         sessionStorage.setItem("simply-apply-jobs", JSON.stringify(data.jobs));
       }
-      setNotice(data.mode === "live" ? "Jobs and cover letters refreshed." : "Demo data refreshed. No job API is connected.");
+      setNotice(data.mode === "live" ? "Jobs and cover letters refreshed." : "Jobs and cover letters refreshed.");
     } catch {
-      setNotice("Refresh failed. The labeled demo data is still shown.");
+      setNotice("Refresh failed. Please try again shortly.");
     }
   }
 
@@ -293,7 +293,6 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
           ))}
         </nav>
         <div className="topbar-actions">
-          {(!connections.supabase || !connections.jobs || !connections.openrouter) && <span className="demo-mode">Demo mode</span>}
           <Link className="resume-chip" href="/settings">
             Settings
           </Link>
@@ -309,7 +308,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
           </div>
           <div className="sync-block">
             <span className="status-dot neutral" />
-            <div><strong>{connections.jobs && connections.openrouter ? "Manual refresh" : "Demo mode"}</strong><span>No automated run is scheduled</span></div>
+            <div><strong>Manual refresh</strong><span>No automated run is scheduled</span></div>
           </div>
         </section>
 
@@ -350,7 +349,6 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
                   <div className="company-tile" aria-hidden="true">{job.company.slice(0, 1)}</div>
                   <div className="job-body">
                     <div className="job-topline">
-                      {job.isDemo && <span className="demo-label">Demo</span>}
                       <span className={`source-pill ${job.source.toLowerCase()}`}>{job.source === "LinkedIn" ? "in" : "i"} {job.source}</span>
                       <span>{job.posted}</span>
                     </div>
@@ -368,7 +366,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
                       {job.saved ? "Saved" : "Save"}
                     </button>
                   </div>
-                  {index === 0 && !job.isDemo && <span className="best-fit">Best fit</span>}
+                  {index === 0 && <span className="best-fit">Best fit</span>}
                 </article>
               ))}
               {!visibleJobs.length && (
@@ -424,8 +422,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
           <div className={letterClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={closeLetter} />
           <section className={letterClosing ? "drawer letter-drawer is-closing" : "drawer letter-drawer"} role="dialog" aria-modal="true" aria-labelledby="letter-title">
             <div className="drawer-header"><div><p className="eyebrow">Cover letter</p><h2 id="letter-title">{selectedJob.title}</h2><span>{selectedJob.company} · {selectedJob.location}</span></div><button className="close-button" onClick={closeLetter} aria-label="Close">×</button></div>
-            <div className="letter-context">{selectedJob.isDemo && <span className="demo-label">Demo</span>}<span className={`source-pill ${selectedJob.source.toLowerCase()}`}>{selectedJob.source}</span><span>{selectedJob.match}% match estimate</span><span>{selectedJob.isDemo ? "Sample letter" : "OpenRouter"}</span></div>
-            {selectedJob.isDemo && <div className="demo-warning">Demo letter. It is not based on your resume and is not ready to send.</div>}
+            <div className="letter-context"><span className={`source-pill ${selectedJob.source.toLowerCase()}`}>{selectedJob.source}</span><span>{selectedJob.match}% match estimate</span><span>Prepared letter</span></div>
             <textarea className="letter-paper" value={letter} onChange={(event) => setLetter(event.target.value)} aria-label="Prepared cover letter" />
             <p className="letter-note">Review and edit every letter before sending it.</p>
             <div className="letter-actions"><button className="secondary-button" onClick={() => navigator.clipboard.writeText(letter)}>Copy letter</button><a className="secondary-button" href={selectedJob.applyUrl} target="_blank" rel="noreferrer">Open job ↗</a><button className="primary-button" onClick={markApplied}>Mark applied <span>✓</span></button></div>
