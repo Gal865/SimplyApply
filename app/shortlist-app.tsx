@@ -35,6 +35,7 @@ type Profile = {
   workModes: string[];
   resumeText: string;
   resumeFileName: string;
+  coverLetterExample: string;
   dailyTime: string;
 };
 
@@ -44,8 +45,19 @@ const initialProfile: Profile = {
   workModes: ["Remote", "Hybrid"],
   resumeText: "",
   resumeFileName: "",
+  coverLetterExample: "",
   dailyTime: "07:00",
 };
+
+async function readApiResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return {} as { error?: string; saved?: boolean; jobs?: Job[]; mode?: string; resumeText?: string; resumeFileName?: string };
+  try {
+    return JSON.parse(text) as { error?: string; saved?: boolean; jobs?: Job[]; mode?: string; resumeText?: string; resumeFileName?: string };
+  } catch {
+    return { error: response.ok ? "The server returned an incomplete response. Please try saving again." : "The server could not complete that request." };
+  }
+}
 
 export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean }) {
   const [profile, setProfile] = useState(initialProfile);
@@ -74,7 +86,8 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!data?.profile) return;
-        const saved = { ...initialProfile, ...data.profile };
+        const localCoverLetterExample = localStorage.getItem("simply-apply-cover-letter-example") || "";
+        const saved = { ...initialProfile, ...data.profile, coverLetterExample: data.profile.coverLetterExample || localCoverLetterExample };
         setProfile(saved);
         setDraftProfile(saved);
         setInitialTitle(saved.targetTitles[0] || "");
@@ -113,7 +126,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(searchProfile),
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (Array.isArray(data.jobs) && data.jobs.length) {
         setJobs(data.jobs);
         sessionStorage.setItem("simply-apply-jobs", JSON.stringify(data.jobs));
@@ -150,7 +163,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(savedProfile),
       });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || "The title could not be saved.");
 
       setProfile(savedProfile);
@@ -171,6 +184,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
     }
     const savedProfile = { ...draftProfile, targetTitles };
     setProfile(savedProfile);
+    localStorage.setItem("simply-apply-cover-letter-example", savedProfile.coverLetterExample);
     setNotice("Search profile saved. Finding matching jobs and preparing cover letters…");
     await fetch("/api/profile", {
       method: "POST",
@@ -189,9 +203,12 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
       const formData = new FormData();
       formData.append("resume", file);
       const response = await fetch("/api/resume", { method: "POST", body: formData });
-      const data = await response.json();
+      const data = await readApiResponse(response);
       if (!response.ok) throw new Error(data.error || "The resume could not be uploaded.");
-      setDraftProfile((current) => ({ ...current, resumeText: data.resumeText, resumeFileName: data.resumeFileName }));
+      const resumeText = data.resumeText;
+      const resumeFileName = data.resumeFileName;
+      if (typeof resumeText !== "string" || typeof resumeFileName !== "string") throw new Error("The resume upload returned an incomplete response. Please try again.");
+      setDraftProfile((current) => ({ ...current, resumeText, resumeFileName }));
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : "The resume could not be uploaded.");
     } finally {
@@ -268,6 +285,11 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
                 <span className="upload-icon" aria-hidden="true">↑</span>
                 {isUploadingResume ? <><strong>Uploading your resume…</strong><small>Reading and storing it privately</small></> : draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded privately · Choose a different file</small></> : <><strong>Upload your resume</strong><small>PDF, DOCX, TXT, or MD · up to 10 MB</small></>}
               </label>
+            </div>
+
+            <div className="cover-letter-style">
+              <div className="cover-letter-style-heading"><span>Cover letter style</span><small>Optional writing reference</small></div>
+              <label className="field"><span>Example cover letter</span><textarea className="cover-letter-example" value={draftProfile.coverLetterExample} onChange={(event) => setDraftProfile({ ...draftProfile, coverLetterExample: event.target.value.slice(0, 6000) })} placeholder="Paste a cover letter whose voice and structure you want to use." rows={9} /><small>Simply Apply will follow its tone and structure, but only use facts from your resume and the job description.</small></label>
             </div>
 
             <div className="daily-row"><div><span className="status-dot neutral" /><strong>Preferred run time</strong><small>Saved only; automation is not connected</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>

@@ -3,9 +3,16 @@ import { ownerEmail, supabaseConfigured, supabaseRequest, upsertRows } from "../
 export async function GET(request: Request) {
   if (!supabaseConfigured()) return Response.json({ configured: false, profile: null });
   const email = ownerEmail(request);
-  const rows = await supabaseRequest<Array<Record<string, unknown>>>(
-    `profiles?owner_email=eq.${encodeURIComponent(email)}&select=target_title,location,work_modes,resume_text,resume_file_name,daily_digest_time&limit=1`,
-  );
+  let rows: Array<Record<string, unknown>> | null;
+  try {
+    rows = await supabaseRequest<Array<Record<string, unknown>>>(
+      `profiles?owner_email=eq.${encodeURIComponent(email)}&select=target_title,location,work_modes,resume_text,resume_file_name,cover_letter_example,daily_digest_time&limit=1`,
+    );
+  } catch {
+    rows = await supabaseRequest<Array<Record<string, unknown>>>(
+      `profiles?owner_email=eq.${encodeURIComponent(email)}&select=target_title,location,work_modes,resume_text,resume_file_name,daily_digest_time&limit=1`,
+    );
+  }
   const row = rows?.[0];
   if (!row) return Response.json({ configured: true, profile: null });
   return Response.json({
@@ -16,6 +23,7 @@ export async function GET(request: Request) {
       workModes: row.work_modes,
       resumeText: row.resume_text,
       resumeFileName: row.resume_file_name,
+      coverLetterExample: row.cover_letter_example,
       dailyTime: row.daily_digest_time,
     },
   });
@@ -29,7 +37,7 @@ export async function POST(request: Request) {
   if (!targetTitles.length) return Response.json({ error: "At least one job title is required." }, { status: 400 });
   if (!supabaseConfigured()) return Response.json({ configured: false, saved: false });
 
-  await upsertRows("profiles?on_conflict=owner_email", {
+  const profile = {
     owner_email: ownerEmail(request),
     target_title: targetTitles.join("\n").slice(0, 180),
     location: String(body.location || "").slice(0, 180),
@@ -38,7 +46,12 @@ export async function POST(request: Request) {
     resume_file_name: String(body.resumeFileName || "").slice(0, 255),
     daily_digest_time: String(body.dailyTime || "07:00").slice(0, 5),
     updated_at: new Date().toISOString(),
-  });
+  };
+  try {
+    await upsertRows("profiles?on_conflict=owner_email", { ...profile, cover_letter_example: String(body.coverLetterExample || "").slice(0, 6000) });
+  } catch {
+    await upsertRows("profiles?on_conflict=owner_email", profile);
+  }
 
   return Response.json({ configured: true, saved: true });
 }

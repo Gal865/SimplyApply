@@ -272,6 +272,12 @@ footer button, footer a { background: none; border: 0; color: var(--ink-soft); c
 .resume-upload-box .upload-icon { align-items: center; background: var(--ink); border-radius: 50%; color: white; display: flex; font-size: 20px; height: 38px; justify-content: center; margin-bottom: 4px; width: 38px; }
 .resume-upload-box strong { font-size: 12px; }
 .resume-upload-box small { color: #777a7f; font-size: 10px; }
+.cover-letter-style { background: rgba(237, 240, 246, .62); border: 1px solid rgba(214, 219, 230, .9); border-radius: 20px; margin: 24px 0; padding: 20px; }
+.cover-letter-style-heading { align-items: baseline; display: flex; justify-content: space-between; margin-bottom: 14px; }
+.cover-letter-style-heading span { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.cover-letter-style-heading small { color: #777a7f; font-size: 10px; }
+.cover-letter-style .field { margin-bottom: 0; }
+.cover-letter-example { line-height: 1.55; min-height: 190px; resize: vertical; }
 .daily-row { align-items: center; background: rgba(240, 236, 230, .72); border: 1px solid rgba(224, 216, 206, .9); border-radius: 18px; display: flex; justify-content: space-between; margin-top: 24px; padding: 15px 16px; }
 .daily-row > div { align-items: center; display: grid; gap: 3px 10px; grid-template-columns: auto 1fr; }
 .daily-row .live-dot { grid-row: 1 / 3; }
