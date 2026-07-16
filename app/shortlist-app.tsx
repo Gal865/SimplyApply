@@ -31,7 +31,6 @@ type ConnectionStatus = {
 type Profile = {
   targetTitles: string[];
   location: string;
-  minSalary: string;
   workModes: string[];
   resumeText: string;
   resumeFileName: string;
@@ -41,7 +40,6 @@ type Profile = {
 const initialProfile: Profile = {
   targetTitles: [],
   location: "New York, NY",
-  minSalary: "100000",
   workModes: ["Remote", "Hybrid"],
   resumeText: "",
   resumeFileName: "",
@@ -140,11 +138,6 @@ const sampleJobs: Job[] = [
   },
 ];
 
-function formatSalary(value: string) {
-  const amount = Number(value);
-  return Number.isFinite(amount) && amount > 0 ? `$${Math.round(amount / 1000)}k+` : "Any salary";
-}
-
 export function ShortlistApp() {
   const [profile, setProfile] = useState(initialProfile);
   const [draftProfile, setDraftProfile] = useState(initialProfile);
@@ -153,7 +146,6 @@ export function ShortlistApp() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [letter, setLetter] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [connections, setConnections] = useState<ConnectionStatus>({ supabase: false, jobs: false, openrouter: false, automation: false });
   const [notice, setNotice] = useState("");
   const [settingsError, setSettingsError] = useState("");
@@ -191,7 +183,6 @@ export function ShortlistApp() {
       setNotice("Save at least one job title before starting a search.");
       return;
     }
-    setIsSearching(true);
     setNotice("");
     try {
       const response = await fetch("/api/jobs/search", {
@@ -204,8 +195,6 @@ export function ShortlistApp() {
       setNotice(data.mode === "live" ? "Jobs and cover letters refreshed." : "Demo data refreshed. No job API is connected.");
     } catch {
       setNotice("Refresh failed. The labeled demo data is still shown.");
-    } finally {
-      setIsSearching(false);
     }
   }
 
@@ -355,22 +344,6 @@ export function ShortlistApp() {
         )}
 
         <section className="workspace">
-          <aside className="profile-card">
-            <div className="section-heading"><span>Search settings</span><button onClick={openSettings}>Edit</button></div>
-            <div className="profile-role">{profile.targetTitles.length ? profile.targetTitles.join(" · ") : "Add job titles"}</div>
-            <div className="profile-list">
-              <div><span>Location</span><strong>{profile.location || "Anywhere"}</strong></div>
-              <div><span>Work style</span><strong>{profile.workModes.join(" + ") || "Any"}</strong></div>
-              <div><span>Minimum</span><strong>{formatSalary(profile.minSalary)}</strong></div>
-              <div><span>Sources</span><strong><i className="source-mark linkedin">in</i><i className="source-mark indeed">i</i> LinkedIn + Indeed</strong></div>
-            </div>
-            <button className="primary-button full" onClick={openSettings} disabled={isSearching}>
-              {isSearching ? "Fetching jobs and writing letters…" : "Edit titles & search"}
-              <span aria-hidden="true">→</span>
-            </button>
-            <p className="tiny-note">Placeholder records are marked Demo. No applications are submitted automatically.</p>
-          </aside>
-
           <div className="jobs-panel">
             <div className="jobs-heading">
               <div>
@@ -437,16 +410,16 @@ export function ShortlistApp() {
             </div>
 
             <label className="field"><span>Job titles</span><textarea className="job-titles-input" value={draftProfile.targetTitles.join("\n")} onChange={(event) => setDraftProfile({ ...draftProfile, targetTitles: event.target.value.split("\n") })} placeholder={"One exact title per line\ne.g. Product Designer\ne.g. UX Designer"} rows={4} /><small>JSearch runs a separate search for each title when you save.</small></label>
-            <div className="field-grid">
-              <label className="field"><span>Location</span><input value={draftProfile.location} onChange={(event) => setDraftProfile({ ...draftProfile, location: event.target.value })} placeholder="City or Anywhere" /></label>
-              <label className="field"><span>Minimum salary</span><input type="number" value={draftProfile.minSalary} onChange={(event) => setDraftProfile({ ...draftProfile, minSalary: event.target.value })} placeholder="100000" /></label>
-            </div>
+            <label className="field"><span>Location</span><input value={draftProfile.location} onChange={(event) => setDraftProfile({ ...draftProfile, location: event.target.value })} placeholder="City or Anywhere" /></label>
             <fieldset className="field"><legend>Work style</legend><div className="choice-row">{["Remote", "Hybrid", "On-site"].map((mode) => <button type="button" key={mode} className={draftProfile.workModes.includes(mode) ? "choice active" : "choice"} onClick={() => setDraftProfile((current) => ({ ...current, workModes: current.workModes.includes(mode) ? current.workModes.filter((item) => item !== mode) : [...current.workModes, mode] }))}>{mode}</button>)}</div></fieldset>
 
             <div className="resume-section">
-              <div className="resume-heading"><div><span>Resume</span><small>Used only to rank jobs and write your letters</small></div><label className="upload-button">Upload .txt<input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={uploadResume} /></label></div>
-              {draftProfile.resumeFileName && <div className="file-chip"><span>DOC</span><div><strong>{draftProfile.resumeFileName}</strong><small>Ready to use</small></div></div>}
-              <textarea value={draftProfile.resumeText} onChange={(event) => setDraftProfile({ ...draftProfile, resumeText: event.target.value })} placeholder="Paste the text from your resume here…" rows={8} />
+              <div className="resume-heading"><div><span>Resume</span><small>Used only to rank jobs and write your letters</small></div></div>
+              <label className="resume-upload-box">
+                <input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={uploadResume} />
+                <span className="upload-icon" aria-hidden="true">↑</span>
+                {draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded · Choose a different file</small></> : <><strong>Upload your resume</strong><small>Choose a .txt or .md file</small></>}
+              </label>
             </div>
 
             <div className="daily-row"><div><span className="status-dot neutral" /><strong>Preferred run time</strong><small>Saved only; automation is not connected</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>

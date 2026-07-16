@@ -4,7 +4,7 @@ export async function GET(request: Request) {
   if (!supabaseConfigured()) return Response.json({ configured: false, profile: null });
   const email = ownerEmail(request);
   const rows = await supabaseRequest<Array<Record<string, unknown>>>(
-    `profiles?owner_email=eq.${encodeURIComponent(email)}&select=target_title,location,min_salary,work_modes,resume_text,resume_file_name,daily_digest_time&limit=1`,
+    `profiles?owner_email=eq.${encodeURIComponent(email)}&select=target_title,location,work_modes,resume_text,resume_file_name,daily_digest_time&limit=1`,
   );
   const row = rows?.[0];
   if (!row) return Response.json({ configured: true, profile: null });
@@ -13,7 +13,6 @@ export async function GET(request: Request) {
     profile: {
       targetTitles: String(row.target_title || "").split("\n").map((title) => title.trim()).filter(Boolean),
       location: row.location,
-      minSalary: row.min_salary ? String(row.min_salary) : "",
       workModes: row.work_modes,
       resumeText: row.resume_text,
       resumeFileName: row.resume_file_name,
@@ -34,7 +33,6 @@ export async function POST(request: Request) {
     owner_email: ownerEmail(request),
     target_title: targetTitles.join("\n").slice(0, 180),
     location: String(body.location || "").slice(0, 180),
-    min_salary: Number(body.minSalary) || null,
     work_modes: Array.isArray(body.workModes) ? body.workModes.slice(0, 3) : [],
     resume_text: String(body.resumeText || "").slice(0, 30000),
     resume_file_name: String(body.resumeFileName || "").slice(0, 255),
