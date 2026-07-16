@@ -31,6 +31,26 @@ export async function supabaseRequest<T = unknown>(path: string, init: RequestIn
   return (await response.json()) as T;
 }
 
+export async function supabaseStorageRequest(path: string, init: RequestInit = {}) {
+  const config = connection();
+  if (!config) throw new Error("Supabase is not configured.");
+
+  const response = await fetch(`${config.url}/storage/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: config.key,
+      Authorization: `Bearer ${config.key}`,
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase Storage request failed with ${response.status}`);
+  }
+
+  return response;
+}
+
 export function ownerEmail(request: Request) {
   const configuredOwner = process.env.APP_OWNER_EMAIL?.trim().toLowerCase();
   if (configuredOwner) return configuredOwner;

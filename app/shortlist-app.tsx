@@ -60,6 +60,7 @@ export function ShortlistApp() {
   const [initialTitle, setInitialTitle] = useState("");
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [initialTitleError, setInitialTitleError] = useState("");
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
 
   useEffect(() => {
     fetch("/api/config-status")
@@ -163,13 +164,21 @@ export function ShortlistApp() {
   async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!/\.(txt|md)$/i.test(file.name)) {
-      setSettingsError("For this first version, upload a .txt or .md resume, or paste the text below.");
-      return;
-    }
-    const resumeText = await file.text();
-    setDraftProfile((current) => ({ ...current, resumeText, resumeFileName: file.name }));
+    setIsUploadingResume(true);
     setSettingsError("");
+    try {
+      const formData = new FormData();
+      formData.append("resume", file);
+      const response = await fetch("/api/resume", { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The resume could not be uploaded.");
+      setDraftProfile((current) => ({ ...current, resumeText: data.resumeText, resumeFileName: data.resumeFileName }));
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "The resume could not be uploaded.");
+    } finally {
+      setIsUploadingResume(false);
+      event.target.value = "";
+    }
   }
 
   async function toggleSaved(job: Job) {
@@ -324,9 +333,9 @@ export function ShortlistApp() {
             <div className="resume-section">
               <div className="resume-heading"><div><span>Resume</span><small>Used only to rank jobs and write your letters</small></div></div>
               <label className="resume-upload-box">
-                <input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={uploadResume} />
+                <input type="file" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" onChange={uploadResume} disabled={isUploadingResume} />
                 <span className="upload-icon" aria-hidden="true">↑</span>
-                {draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded · Choose a different file</small></> : <><strong>Upload your resume</strong><small>Choose a .txt or .md file</small></>}
+                {isUploadingResume ? <><strong>Uploading your resume…</strong><small>Reading and storing it privately</small></> : draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded privately · Choose a different file</small></> : <><strong>Upload your resume</strong><small>PDF, DOCX, TXT, or MD · up to 10 MB</small></>}
               </label>
             </div>
 
