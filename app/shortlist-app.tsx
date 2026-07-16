@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
 type Job = {
   id: string;
@@ -157,6 +157,9 @@ export function ShortlistApp() {
   const [connections, setConnections] = useState<ConnectionStatus>({ supabase: false, jobs: false, openrouter: false, automation: false });
   const [notice, setNotice] = useState("");
   const [settingsError, setSettingsError] = useState("");
+  const [initialTitle, setInitialTitle] = useState("");
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [initialTitleError, setInitialTitleError] = useState("");
 
   useEffect(() => {
     fetch("/api/config-status")
@@ -170,6 +173,7 @@ export function ShortlistApp() {
         const saved = { ...initialProfile, ...data.profile };
         setProfile(saved);
         setDraftProfile(saved);
+        setInitialTitle(saved.targetTitles[0] || "");
       })
       .catch(() => undefined);
   }, []);
@@ -209,6 +213,36 @@ export function ShortlistApp() {
     setDraftProfile(profile);
     setSettingsError("");
     setSettingsOpen(true);
+  }
+
+  async function saveInitialTitle(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const title = initialTitle.trim();
+    if (!title) {
+      setInitialTitleError("Enter the exact job title you want to find.");
+      return;
+    }
+
+    const savedProfile = { ...profile, targetTitles: [title] };
+    setIsSavingTitle(true);
+    setInitialTitleError("");
+    try {
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(savedProfile),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The title could not be saved.");
+
+      setProfile(savedProfile);
+      setDraftProfile(savedProfile);
+      setNotice(data.saved ? "Job title saved. No automated search has been started." : "Job title is ready for this preview. Connect Supabase to save it permanently.");
+    } catch (error) {
+      setInitialTitleError(error instanceof Error ? error.message : "The title could not be saved.");
+    } finally {
+      setIsSavingTitle(false);
+    }
   }
 
   async function saveProfile() {
@@ -300,6 +334,25 @@ export function ShortlistApp() {
             <div><strong>{connections.jobs && connections.openrouter ? "Manual refresh" : "Demo mode"}</strong><span>No automated run is scheduled</span></div>
           </div>
         </section>
+
+        {!profile.targetTitles.length && (
+          <section className="title-setup" aria-labelledby="title-setup-heading">
+            <div>
+              <p className="eyebrow">Start here</p>
+              <h2 id="title-setup-heading">What job are you looking for?</h2>
+              <p>Enter the actual title you want Shortlist to search for. This saves your preference only—it does not run a search or schedule anything.</p>
+            </div>
+            <form onSubmit={saveInitialTitle}>
+              <label htmlFor="initial-job-title">Job search title</label>
+              <div className="title-entry-row">
+                <input id="initial-job-title" value={initialTitle} onChange={(event) => { setInitialTitle(event.target.value); setInitialTitleError(""); }} placeholder="e.g. Junior Software Engineer" autoComplete="organization-title" autoFocus />
+                <button className="primary-button" type="submit" disabled={isSavingTitle}>{isSavingTitle ? "Saving…" : "Save title"}<span aria-hidden="true">→</span></button>
+              </div>
+              {initialTitleError && <p className="form-error" role="alert">{initialTitleError}</p>}
+              <small>You can add more titles and search details later in Search settings.</small>
+            </form>
+          </section>
+        )}
 
         <section className="workspace">
           <aside className="profile-card">

@@ -19,6 +19,8 @@ test("server-renders the Shortlist product", async () => {
   assert.match(html, /Shortlist/);
   assert.match(html, /Job review/);
   assert.match(html, /Jobs to review/);
+  assert.match(html, /What job are you looking for\?/);
+  assert.match(html, /Job search title/);
   assert.match(html, /Demo mode/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
