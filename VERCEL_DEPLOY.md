@@ -1,4 +1,4 @@
-# Deploy Shortlist on Vercel
+# Deploy SImpleApply on Vercel
 
 1. Push this repository to GitHub, GitLab, or Bitbucket and import it in Vercel.
 2. Keep the detected framework set to **Next.js**. No custom build or output directory is needed.

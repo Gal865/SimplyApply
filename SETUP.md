@@ -1,6 +1,6 @@
-# Connect Shortlist
+# Connect SImpleApply
 
-Shortlist uses server-side environment variables. Never paste a service-role key, job API key, or OpenRouter key into the website itself or commit one to Git.
+SImpleApply uses server-side environment variables. Never paste a service-role key, job API key, or OpenRouter key into the website itself or commit one to Git.
 
 ## 1. Create the Supabase tables
 
@@ -50,7 +50,7 @@ Copy `.env.example` to a new ignored file named `.env.local`, replace the placeh
 
 ## 5. Add keys to the published Sites app
 
-Open the Shortlist project in **Sites**, open its environment-variable settings, and add the same five names and values. Save them as secrets where the interface offers that option, then redeploy the current version.
+Open the SImpleApply project in **Sites**, open its environment-variable settings, and add the same five names and values. Save them as secrets where the interface offers that option, then redeploy the current version.
 
 ## What is not active yet
 
