@@ -22,10 +22,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const body = (await request.json()) as Record<string, unknown>;
   const targetTitles = Array.isArray(body.targetTitles)
-    ? body.targetTitles.map((title) => String(title).trim()).filter(Boolean).slice(0, 8)
-    : String(body.targetTitle || "").split("\n").map((title) => title.trim()).filter(Boolean).slice(0, 8);
+    ? body.targetTitles.map((title: unknown) => String(title).trim()).filter(Boolean).slice(0, 8)
+    : String(body.targetTitle || "").split("\n").map((title: string) => title.trim()).filter(Boolean).slice(0, 8);
   if (!targetTitles.length) return Response.json({ error: "At least one job title is required." }, { status: 400 });
   if (!supabaseConfigured()) return Response.json({ configured: false, saved: false });
 
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     resume_file_name: String(body.resumeFileName || "").slice(0, 255),
     daily_digest_time: String(body.dailyTime || "07:00").slice(0, 5),
     updated_at: new Date().toISOString(),
-  }, "owner_email");
+  });
 
   return Response.json({ configured: true, saved: true });
 }

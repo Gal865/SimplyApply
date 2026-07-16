@@ -83,7 +83,7 @@ async function saveJobs(request: Request, jobs: Job[], titles: string[], locatio
     target_title: titles.join("\n"),
     location,
     updated_at: new Date().toISOString(),
-  }, "owner_email");
+  });
   await upsertRows("jobs?on_conflict=owner_email,external_id", jobs.map((job) => ({
     owner_email: email,
     external_id: job.id,
@@ -100,13 +100,13 @@ async function saveJobs(request: Request, jobs: Job[], titles: string[], locatio
     cover_letter: job.coverLetter,
     status: "new",
     last_seen_at: new Date().toISOString(),
-  })), "owner_email,external_id");
+  })));
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const body = (await request.json()) as Record<string, unknown>;
   const titles = (Array.isArray(body.targetTitles) ? body.targetTitles : [body.targetTitle])
-    .map((title) => String(title || "").trim())
+    .map((title: unknown) => String(title || "").trim())
     .filter(Boolean)
     .slice(0, 8);
   const location = String(body.location || "United States").slice(0, 180);

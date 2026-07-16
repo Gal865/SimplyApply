@@ -32,10 +32,17 @@ export async function supabaseRequest<T = unknown>(path: string, init: RequestIn
 }
 
 export function ownerEmail(request: Request) {
+  const configuredOwner = process.env.APP_OWNER_EMAIL?.trim().toLowerCase();
+  if (configuredOwner) return configuredOwner;
+
+  if (process.env.VERCEL) {
+    throw new Error("APP_OWNER_EMAIL must be configured on Vercel.");
+  }
+
   return request.headers.get("oai-authenticated-user-email") || "local-preview@shortlist.app";
 }
 
-export async function upsertRows(table: string, rows: Json, conflict: string) {
+export async function upsertRows(table: string, rows: Json) {
   return supabaseRequest(table, {
     method: "POST",
     headers: {
