@@ -1,11 +1,10 @@
 import { createHash } from "node:crypto";
 import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 import { ownerEmail, supabaseConfigured, supabaseStorageRequest } from "../../../lib/supabase-rest";
 
 export const runtime = "nodejs";
 
-const MAX_RESUME_BYTES = 10 * 1024 * 1024;
+const MAX_RESUME_BYTES = 4 * 1024 * 1024;
 const MAX_RESUME_TEXT = 30_000;
 const RESUME_BUCKET = "resumes";
 
@@ -25,6 +24,13 @@ function getResumeFormat(file: File): ResumeFormat | null {
 
 async function extractResumeText(bytes: Buffer, format: ResumeFormat) {
   if (format.extension === "pdf") {
+    const canvas = await import("@napi-rs/canvas");
+    Object.assign(globalThis, {
+      DOMMatrix: canvas.DOMMatrix,
+      ImageData: canvas.ImageData,
+      Path2D: canvas.Path2D,
+    });
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: bytes });
     try {
       return (await parser.getText()).text;
@@ -72,7 +78,7 @@ export async function POST(request: Request) {
   const file = formData.get("resume");
   if (!(file instanceof File)) return Response.json({ error: "Choose a resume file to upload." }, { status: 400 });
   if (!file.size || file.size > MAX_RESUME_BYTES) {
-    return Response.json({ error: "Resume files must be smaller than 10 MB." }, { status: 400 });
+    return Response.json({ error: "Resume files must be smaller than 4 MB." }, { status: 400 });
   }
 
   const format = getResumeFormat(file);

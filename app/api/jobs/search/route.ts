@@ -1,4 +1,4 @@
-import { createCoverLetter, demoCoverLetter } from "../../../../lib/cover-letter";
+import { demoCoverLetter } from "../../../../lib/cover-letter";
 import { ownerEmail, supabaseConfigured, upsertRows } from "../../../../lib/supabase-rest";
 
 type Job = {
@@ -64,17 +64,6 @@ function normalize(job: ProviderJob, index: number): Omit<Job, "coverLetter"> {
   };
 }
 
-async function attachLetters(jobs: Array<Omit<Job, "coverLetter">>, resumeText: string, coverLetterExample: string): Promise<Job[]> {
-  return Promise.all(
-    jobs.map(async (job) => ({
-      ...job,
-      coverLetter:
-        (await createCoverLetter(job, resumeText, coverLetterExample)) ||
-        "Cover letter unavailable. Connect OpenRouter and add your resume, then refresh the job list.",
-    })),
-  );
-}
-
 async function saveJobs(request: Request, jobs: Job[], titles: string[], location: string) {
   if (!supabaseConfigured()) return;
   const email = ownerEmail(request);
@@ -110,8 +99,6 @@ export async function POST(request: Request) {
     .filter(Boolean)
     .slice(0, 8);
   const location = String(body.location || "United States").slice(0, 180);
-  const resumeText = String(body.resumeText || "").slice(0, 30000);
-  const coverLetterExample = String(body.coverLetterExample || "").slice(0, 6000);
   const apiKey = process.env.JSEARCH_API_KEY;
 
   if (!titles.length) return Response.json({ error: "Save at least one job title before searching." }, { status: 400 });
@@ -132,7 +119,7 @@ export async function POST(request: Request) {
     seen.add(id);
     return true;
   }).slice(0, 6).map(normalize);
-  const jobs = await attachLetters(normalized, resumeText, coverLetterExample);
+  const jobs = normalized.map((job) => ({ ...job, coverLetter: "" }));
   await saveJobs(request, jobs, titles, location);
   return Response.json({ mode: "live", jobs });
 }

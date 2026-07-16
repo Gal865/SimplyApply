@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 type Job = {
@@ -17,6 +17,7 @@ type Job = {
   description: string;
   applyUrl: string;
   coverLetter: string;
+  coverLetterState?: "processing" | "ready" | "failed";
   isDemo?: boolean;
   saved?: boolean;
   status?: "new" | "saved" | "applied";
@@ -49,12 +50,15 @@ const initialProfile: Profile = {
   dailyTime: "07:00",
 };
 
+const MAX_RESUME_BYTES = 4 * 1024 * 1024;
+
 async function readApiResponse(response: Response) {
   const text = await response.text();
-  if (!text) return {} as { error?: string; saved?: boolean; jobs?: Job[]; mode?: string; resumeText?: string; resumeFileName?: string };
+  if (!text) return {} as { error?: string; saved?: boolean; jobs?: Job[]; mode?: string; letter?: string; resumeText?: string; resumeFileName?: string };
   try {
-    return JSON.parse(text) as { error?: string; saved?: boolean; jobs?: Job[]; mode?: string; resumeText?: string; resumeFileName?: string };
+    return JSON.parse(text) as { error?: string; saved?: boolean; jobs?: Job[]; mode?: string; letter?: string; resumeText?: string; resumeFileName?: string };
   } catch {
+    if (response.status === 413) return { error: "This resume is too large to upload. Choose a file smaller than 4 MB." };
     return { error: response.ok ? "The server returned an incomplete response. Please try saving again." : "The server could not complete that request." };
   }
 }
@@ -76,6 +80,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [initialTitleError, setInitialTitleError] = useState("");
   const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const coverLetterQueue = useRef(0);
 
   useEffect(() => {
     fetch("/api/config-status")
@@ -93,7 +98,10 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
         setInitialTitle(saved.targetTitles[0] || "");
         const cachedJobs = sessionStorage.getItem("simply-apply-jobs");
         if (cachedJobs) {
-          try { setJobs(JSON.parse(cachedJobs) as Job[]); } catch { sessionStorage.removeItem("simply-apply-jobs"); }
+          try {
+            const savedJobs = JSON.parse(cachedJobs) as Job[];
+            setJobs(savedJobs);
+          } catch { sessionStorage.removeItem("simply-apply-jobs"); }
         }
       })
       .catch(() => undefined);
@@ -104,6 +112,34 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
     if (activeTab === "applied") return jobs.filter((job) => job.status === "applied");
     return jobs;
   }, [activeTab, jobs]);
+
+  function storeJobs(nextJobs: Job[]) {
+    sessionStorage.setItem("simply-apply-jobs", JSON.stringify(nextJobs));
+    return nextJobs;
+  }
+
+  function updateJob(id: string, update: Partial<Job>) {
+    setJobs((current) => storeJobs(current.map((job) => (job.id === id ? { ...job, ...update } : job))));
+  }
+
+  async function prepareCoverLetters(jobsToPrepare: Job[], searchProfile: Profile) {
+    const queue = ++coverLetterQueue.current;
+    for (const job of jobsToPrepare) {
+      if (queue !== coverLetterQueue.current) return;
+      try {
+        const response = await fetch("/api/cover-letter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job, resumeText: searchProfile.resumeText, coverLetterExample: searchProfile.coverLetterExample }),
+        });
+        const data = await readApiResponse(response);
+        if (!response.ok || typeof data.letter !== "string") throw new Error(data.error || "Cover letter could not be prepared.");
+        if (queue === coverLetterQueue.current) updateJob(job.id, { coverLetter: data.letter, coverLetterState: "ready" });
+      } catch {
+        if (queue === coverLetterQueue.current) updateJob(job.id, { coverLetterState: "failed" });
+      }
+    }
+  }
 
   function closeSettings() {
     if (settingsClosing) return;
@@ -128,10 +164,11 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
       });
       const data = await readApiResponse(response);
       if (Array.isArray(data.jobs) && data.jobs.length) {
-        setJobs(data.jobs);
-        sessionStorage.setItem("simply-apply-jobs", JSON.stringify(data.jobs));
+        const queuedJobs = data.jobs.map((job) => ({ ...job, coverLetter: "", coverLetterState: "processing" as const }));
+        setJobs(storeJobs(queuedJobs));
+        void prepareCoverLetters(queuedJobs, searchProfile);
       }
-      setNotice(data.mode === "live" ? "Jobs and cover letters refreshed." : "Jobs and cover letters refreshed.");
+      setNotice("Jobs refreshed. Cover letters are being prepared one at a time.");
     } catch {
       setNotice("Refresh failed. Please try again shortly.");
     }
@@ -197,6 +234,11 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
   async function uploadResume(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_RESUME_BYTES) {
+      setSettingsError("Resume files must be smaller than 4 MB.");
+      event.target.value = "";
+      return;
+    }
     setIsUploadingResume(true);
     setSettingsError("");
     try {
@@ -283,7 +325,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
               <label className="resume-upload-box">
                 <input type="file" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" onChange={uploadResume} disabled={isUploadingResume} />
                 <span className="upload-icon" aria-hidden="true">↑</span>
-                {isUploadingResume ? <><strong>Uploading your resume…</strong><small>Reading and storing it privately</small></> : draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded privately · Choose a different file</small></> : <><strong>Upload your resume</strong><small>PDF, DOCX, TXT, or MD · up to 10 MB</small></>}
+                {isUploadingResume ? <><strong>Uploading your resume…</strong><small>Reading and storing it privately</small></> : draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded privately · Choose a different file</small></> : <><strong>Upload your resume</strong><small>PDF, DOCX, TXT, or MD · up to 4 MB</small></>}
               </label>
             </div>
 
@@ -383,7 +425,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
                     <div className="match-ring" style={{ "--match": `${job.match * 3.6}deg` } as React.CSSProperties}>
                       <div><strong>{job.match}%</strong><span>match</span></div>
                     </div>
-                    <button className="letter-button" onClick={() => viewLetter(job)}>View cover letter <span>→</span></button>
+                    <button className="letter-button" onClick={() => viewLetter(job)} disabled={job.coverLetterState !== "ready"}>{job.coverLetterState === "ready" ? <>View cover letter <span>→</span></> : "Processing cover letter…"}</button>
                     <button className={job.saved ? "save-button saved" : "save-button"} onClick={() => toggleSaved(job)} aria-label={job.saved ? `Remove ${job.title} from saved jobs` : `Save ${job.title}`}>
                       {job.saved ? "Saved" : "Save"}
                     </button>
