@@ -28,6 +28,7 @@ create table if not exists public.jobs (
   salary_text text,
   apply_url text not null,
   description text,
+  cover_letter text,
   match_score integer check (match_score between 0 and 100),
   match_reasons jsonb not null default '[]'::jsonb,
   status text not null default 'new' check (status in ('new', 'saved', 'applied', 'dismissed')),

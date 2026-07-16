@@ -15,8 +15,17 @@ type Job = {
   reasons: string[];
   description: string;
   applyUrl: string;
+  coverLetter: string;
+  isDemo?: boolean;
   saved?: boolean;
   status?: "new" | "saved" | "applied";
+};
+
+type ConnectionStatus = {
+  supabase: boolean;
+  jobs: boolean;
+  openrouter: boolean;
+  automation: boolean;
 };
 
 type Profile = {
@@ -39,6 +48,10 @@ const initialProfile: Profile = {
   dailyTime: "07:00",
 };
 
+function demoLetter(title: string, company: string) {
+  return `DEMO COVER LETTER — not generated from your resume\n\nDear ${company},\n\nI am writing to express my interest in the ${title} position. This sample shows where a personalized letter will appear after OpenRouter and your resume are connected.\n\nIn the connected version, this section will cite only experience, skills, and results found in your resume, matched directly to the responsibilities in the job description. It will not invent qualifications or reuse this generic demo language.\n\nThank you for your consideration.\n\nSincerely,\n[Your name]`;
+}
+
 const sampleJobs: Job[] = [
   {
     id: "stripe-product-engineer",
@@ -48,12 +61,14 @@ const sampleJobs: Job[] = [
     location: "New York, NY",
     workMode: "Hybrid",
     salary: "$132k–$198k",
-    posted: "2h ago",
+    posted: "Demo",
     match: 96,
     reasons: ["TypeScript", "Product thinking", "Early career"],
     description:
       "Build and ship polished product experiences across Stripe's platform. Partner with design and product, work across the stack, and turn ambiguous customer problems into reliable software.",
     applyUrl: "https://www.linkedin.com/jobs/",
+    coverLetter: demoLetter("Product Engineer, New Grad", "Stripe"),
+    isDemo: true,
   },
   {
     id: "notion-frontend-engineer",
@@ -63,12 +78,14 @@ const sampleJobs: Job[] = [
     location: "New York, NY",
     workMode: "Hybrid",
     salary: "$135k–$185k",
-    posted: "5h ago",
+    posted: "Demo",
     match: 93,
     reasons: ["React", "Design systems", "Collaboration"],
     description:
       "Create fast, thoughtful interfaces used by teams around the world. Own features end to end, collaborate closely with designers, and strengthen the foundations of a growing web application.",
     applyUrl: "https://www.indeed.com/",
+    coverLetter: demoLetter("Frontend Software Engineer", "Notion"),
+    isDemo: true,
   },
   {
     id: "figma-software-engineer",
@@ -78,12 +95,14 @@ const sampleJobs: Job[] = [
     location: "United States",
     workMode: "Remote",
     salary: "$128k–$170k",
-    posted: "Today",
+    posted: "Demo",
     match: 91,
     reasons: ["Full-stack", "Experimentation", "User focus"],
     description:
       "Develop product-led growth experiences, run thoughtful experiments, and work with a cross-functional team to help more people discover and succeed with collaborative design tools.",
     applyUrl: "https://www.linkedin.com/jobs/",
+    coverLetter: demoLetter("Software Engineer, Growth", "Figma"),
+    isDemo: true,
   },
   {
     id: "ramp-associate-engineer",
@@ -93,12 +112,14 @@ const sampleJobs: Job[] = [
     location: "New York, NY",
     workMode: "On-site",
     salary: "$110k–$145k",
-    posted: "1d ago",
+    posted: "Demo",
     match: 88,
     reasons: ["Python", "APIs", "Fast-paced team"],
     description:
       "Help build financial tools that save businesses time. Work across APIs and user-facing workflows while learning from experienced engineers in a high-ownership environment.",
     applyUrl: "https://www.indeed.com/",
+    coverLetter: demoLetter("Associate Software Engineer", "Ramp"),
+    isDemo: true,
   },
   {
     id: "linear-web-engineer",
@@ -108,12 +129,14 @@ const sampleJobs: Job[] = [
     location: "United States",
     workMode: "Remote",
     salary: "$120k–$175k",
-    posted: "1d ago",
+    posted: "Demo",
     match: 86,
     reasons: ["React", "Performance", "Craft"],
     description:
       "Build high-quality web experiences with a focus on speed, interaction detail, and maintainable systems. Shape product direction and raise the bar for interface craft.",
     applyUrl: "https://www.linkedin.com/jobs/",
+    coverLetter: demoLetter("Web Engineer", "Linear"),
+    isDemo: true,
   },
 ];
 
@@ -131,11 +154,15 @@ export function ShortlistApp() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [letter, setLetter] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [connections, setConnections] = useState<ConnectionStatus>({ supabase: false, jobs: false, openrouter: false, automation: false });
   const [notice, setNotice] = useState("");
   const [settingsError, setSettingsError] = useState("");
 
   useEffect(() => {
+    fetch("/api/config-status")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => data && setConnections(data))
+      .catch(() => undefined);
     fetch("/api/profile")
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
@@ -166,9 +193,9 @@ export function ShortlistApp() {
       });
       const data = await response.json();
       if (Array.isArray(data.jobs) && data.jobs.length) setJobs(data.jobs);
-      setNotice(data.mode === "live" ? "Fresh matches found from your connected job feed." : "Preview matches refreshed. Connect your job API for live listings.");
+      setNotice(data.mode === "live" ? "Jobs and cover letters refreshed." : "Demo data refreshed. No job API is connected.");
     } catch {
-      setNotice("Your preview shortlist is ready. Live search will start once the job API is connected.");
+      setNotice("Refresh failed. The labeled demo data is still shown.");
     } finally {
       setIsSearching(false);
     }
@@ -217,29 +244,9 @@ export function ShortlistApp() {
     }).catch(() => undefined);
   }
 
-  async function generateLetter(job: Job) {
-    if (!profile.resumeText.trim()) {
-      setSettingsError("Add your resume so the letter can use your real experience.");
-      setDraftProfile(profile);
-      setSettingsOpen(true);
-      return;
-    }
+  function viewLetter(job: Job) {
     setSelectedJob(job);
-    setLetter("");
-    setIsGenerating(true);
-    try {
-      const response = await fetch("/api/cover-letter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job, resumeText: profile.resumeText }),
-      });
-      const data = await response.json();
-      setLetter(data.letter || "We couldn't create the draft yet. Please try again.");
-    } catch {
-      setLetter("We couldn't create the draft yet. Check your OpenRouter connection and try again.");
-    } finally {
-      setIsGenerating(false);
-    }
+    setLetter(job.coverLetter);
   }
 
   async function markApplied() {
@@ -266,27 +273,30 @@ export function ShortlistApp() {
             </button>
           ))}
         </nav>
-        <button className="resume-chip" onClick={openSettings}>
-          <span className="resume-dot" /> Resume · {resumePercent}%
-        </button>
+        <div className="topbar-actions">
+          {(!connections.supabase || !connections.jobs || !connections.openrouter) && <span className="demo-mode">Demo mode</span>}
+          <button className="resume-chip" onClick={openSettings}>
+            <span className="resume-dot" /> Resume · {resumePercent}%
+          </button>
+        </div>
       </header>
 
       <main id="top">
         <section className="intro">
           <div>
-            <p className="eyebrow">Your daily job desk</p>
-            <h1>{activeTab === "today" ? "Good morning. Your shortlist is ready." : activeTab === "saved" ? "The roles worth coming back to." : "Every application, in one calm place."}</h1>
-            <p className="intro-copy">Relevant roles from LinkedIn and Indeed, ranked around what you actually want.</p>
+            <p className="eyebrow">Job review</p>
+            <h1>{activeTab === "today" ? "Jobs to review" : activeTab === "saved" ? "Saved jobs" : "Applications"}</h1>
+            <p className="intro-copy">Jobs matching your saved search. Each cover letter is prepared before the job appears here.</p>
           </div>
           <div className="sync-block">
-            <span className="live-dot" />
-            <div><strong>Daily search on</strong><span>Next run · {profile.dailyTime}</span></div>
+            <span className="status-dot neutral" />
+            <div><strong>{connections.jobs && connections.openrouter ? "Manual refresh" : "Demo mode"}</strong><span>No automated run is scheduled</span></div>
           </div>
         </section>
 
         <section className="workspace">
           <aside className="profile-card">
-            <div className="section-heading"><span>Search profile</span><button onClick={openSettings}>Edit</button></div>
+            <div className="section-heading"><span>Search settings</span><button onClick={openSettings}>Edit</button></div>
             <div className="profile-role">{profile.targetTitle}</div>
             <div className="profile-list">
               <div><span>Location</span><strong>{profile.location || "Anywhere"}</strong></div>
@@ -295,19 +305,19 @@ export function ShortlistApp() {
               <div><span>Sources</span><strong><i className="source-mark linkedin">in</i><i className="source-mark indeed">i</i> LinkedIn + Indeed</strong></div>
             </div>
             <button className="primary-button full" onClick={findJobs} disabled={isSearching}>
-              {isSearching ? "Finding your matches…" : "Find today's matches"}
+              {isSearching ? "Fetching jobs and writing letters…" : "Refresh jobs"}
               <span aria-hidden="true">→</span>
             </button>
-            <p className="tiny-note">We never auto-apply. You review every role and letter first.</p>
+            <p className="tiny-note">Placeholder records are marked Demo. No applications are submitted automatically.</p>
           </aside>
 
           <div className="jobs-panel">
             <div className="jobs-heading">
               <div>
-                <p className="eyebrow">{activeTab === "today" ? "Selected for you" : activeTab}</p>
+                <p className="eyebrow">{activeTab === "today" ? "Results" : activeTab}</p>
                 <h2>{visibleJobs.length} {visibleJobs.length === 1 ? "role" : "roles"}</h2>
               </div>
-              <div className="rank-note"><span className="spark">✦</span> Ranked by resume fit</div>
+              <div className="rank-note">Match estimate</div>
             </div>
 
             {notice && <div className="notice" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Dismiss">×</button></div>}
@@ -318,6 +328,7 @@ export function ShortlistApp() {
                   <div className="company-tile" aria-hidden="true">{job.company.slice(0, 1)}</div>
                   <div className="job-body">
                     <div className="job-topline">
+                      {job.isDemo && <span className="demo-label">Demo</span>}
                       <span className={`source-pill ${job.source.toLowerCase()}`}>{job.source === "LinkedIn" ? "in" : "i"} {job.source}</span>
                       <span>{job.posted}</span>
                     </div>
@@ -330,12 +341,12 @@ export function ShortlistApp() {
                     <div className="match-ring" style={{ "--match": `${job.match * 3.6}deg` } as React.CSSProperties}>
                       <div><strong>{job.match}%</strong><span>match</span></div>
                     </div>
-                    <button className="letter-button" onClick={() => generateLetter(job)}>Write cover letter <span>↗</span></button>
+                    <button className="letter-button" onClick={() => viewLetter(job)}>View cover letter <span>→</span></button>
                     <button className={job.saved ? "save-button saved" : "save-button"} onClick={() => toggleSaved(job)} aria-label={job.saved ? `Remove ${job.title} from saved jobs` : `Save ${job.title}`}>
                       {job.saved ? "Saved" : "Save"}
                     </button>
                   </div>
-                  {index === 0 && <span className="best-fit">Best fit</span>}
+                  {index === 0 && !job.isDemo && <span className="best-fit">Best fit</span>}
                 </article>
               ))}
               {!visibleJobs.length && (
@@ -346,13 +357,24 @@ export function ShortlistApp() {
         </section>
       </main>
 
-      <footer><span>shortlist.</span><p>Less searching. Better applying.</p><button onClick={openSettings}>Connections & settings</button></footer>
+      <footer><span>shortlist.</span><p>Private job workspace</p><button onClick={openSettings}>Connections & settings</button></footer>
 
       {settingsOpen && (
         <div className="overlay" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && setSettingsOpen(false)}>
           <section className="drawer settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <div className="drawer-header"><div><p className="eyebrow">Make it yours</p><h2 id="settings-title">Your search profile</h2></div><button className="close-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div>
-            <p className="drawer-intro">Shortlist uses this once, then quietly brings back better matches every morning.</p>
+            <div className="drawer-header"><div><p className="eyebrow">Settings</p><h2 id="settings-title">Search profile</h2></div><button className="close-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div>
+            <p className="drawer-intro">These fields control job search, matching, and the cover letters prepared during refresh.</p>
+
+            <div className="connection-panel">
+              <div className="connection-heading"><strong>Server connections</strong><span>Keys are never entered in this page</span></div>
+              <div className="connection-list">
+                <span>Supabase <i className={connections.supabase ? "connected" : "missing"}>{connections.supabase ? "Connected" : "Not connected"}</i></span>
+                <span>Job API <i className={connections.jobs ? "connected" : "missing"}>{connections.jobs ? "Connected" : "Not connected"}</i></span>
+                <span>OpenRouter <i className={connections.openrouter ? "connected" : "missing"}>{connections.openrouter ? "Connected" : "Not connected"}</i></span>
+                <span>Daily automation <i className="missing">Not configured</i></span>
+              </div>
+              <small>Add these as server environment variables using the setup guide in the project.</small>
+            </div>
 
             <label className="field"><span>General job title</span><input value={draftProfile.targetTitle} onChange={(event) => setDraftProfile({ ...draftProfile, targetTitle: event.target.value })} placeholder="e.g. Product Designer" /></label>
             <div className="field-grid">
@@ -367,7 +389,7 @@ export function ShortlistApp() {
               <textarea value={draftProfile.resumeText} onChange={(event) => setDraftProfile({ ...draftProfile, resumeText: event.target.value })} placeholder="Paste the text from your resume here…" rows={8} />
             </div>
 
-            <div className="daily-row"><div><span className="live-dot" /><strong>Daily search</strong><small>Run a fresh search each morning</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>
+            <div className="daily-row"><div><span className="status-dot neutral" /><strong>Preferred run time</strong><small>Saved only; automation is not connected</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>
             {settingsError && <p className="form-error">{settingsError}</p>}
             <div className="drawer-footer"><button className="secondary-button" onClick={() => setSettingsOpen(false)}>Cancel</button><button className="primary-button" onClick={saveProfile}>Save profile <span>→</span></button></div>
           </section>
@@ -377,17 +399,12 @@ export function ShortlistApp() {
       {selectedJob && (
         <div className="overlay" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && setSelectedJob(null)}>
           <section className="drawer letter-drawer" role="dialog" aria-modal="true" aria-labelledby="letter-title">
-            <div className="drawer-header"><div><p className="eyebrow">Personalized draft</p><h2 id="letter-title">{selectedJob.title}</h2><span>{selectedJob.company} · {selectedJob.location}</span></div><button className="close-button" onClick={() => setSelectedJob(null)} aria-label="Close">×</button></div>
-            <div className="letter-context"><span className={`source-pill ${selectedJob.source.toLowerCase()}`}>{selectedJob.source}</span><span>{selectedJob.match}% resume match</span><span>OpenRouter</span></div>
-            {isGenerating ? (
-              <div className="letter-loading"><div className="typing"><span /><span /><span /></div><h3>Writing from your real experience</h3><p>Matching your strongest resume details to this role.</p></div>
-            ) : (
-              <>
-                <textarea className="letter-paper" value={letter} onChange={(event) => setLetter(event.target.value)} aria-label="Generated cover letter" />
-                <p className="letter-note">Review the draft before sending. Shortlist never adds experience that isn't in your resume.</p>
-                <div className="letter-actions"><button className="secondary-button" onClick={() => navigator.clipboard.writeText(letter)}>Copy letter</button><a className="secondary-button" href={selectedJob.applyUrl} target="_blank" rel="noreferrer">Open job ↗</a><button className="primary-button" onClick={markApplied}>Mark applied <span>✓</span></button></div>
-              </>
-            )}
+            <div className="drawer-header"><div><p className="eyebrow">Cover letter</p><h2 id="letter-title">{selectedJob.title}</h2><span>{selectedJob.company} · {selectedJob.location}</span></div><button className="close-button" onClick={() => setSelectedJob(null)} aria-label="Close">×</button></div>
+            <div className="letter-context">{selectedJob.isDemo && <span className="demo-label">Demo</span>}<span className={`source-pill ${selectedJob.source.toLowerCase()}`}>{selectedJob.source}</span><span>{selectedJob.match}% match estimate</span><span>{selectedJob.isDemo ? "Sample letter" : "OpenRouter"}</span></div>
+            {selectedJob.isDemo && <div className="demo-warning">Demo letter. It is not based on your resume and is not ready to send.</div>}
+            <textarea className="letter-paper" value={letter} onChange={(event) => setLetter(event.target.value)} aria-label="Prepared cover letter" />
+            <p className="letter-note">Review and edit every letter before sending it.</p>
+            <div className="letter-actions"><button className="secondary-button" onClick={() => navigator.clipboard.writeText(letter)}>Copy letter</button><a className="secondary-button" href={selectedJob.applyUrl} target="_blank" rel="noreferrer">Open job ↗</a><button className="primary-button" onClick={markApplied}>Mark applied <span>✓</span></button></div>
           </section>
         </div>
       )}

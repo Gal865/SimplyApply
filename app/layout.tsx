@@ -7,21 +7,21 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "shortlist.jobs";
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
   const base = new URL(`${protocol}://${host}`);
-  const socialImage = new URL("/og.png", base).toString();
+  const socialImage = new URL("/og-v2.png", base).toString();
   return {
     metadataBase: base,
-    title: "Shortlist — your best-fit jobs, ready every morning",
-    description: "A calm daily shortlist of relevant jobs with personalized cover letters built from your resume.",
+    title: "Shortlist — job review workspace",
+    description: "Review matched jobs and prepared cover letters in one private workspace.",
     icons: { icon: socialImage },
     openGraph: {
       title: "Shortlist",
-      description: "Your best-fit jobs. Ready every morning.",
+      description: "Private job review workspace.",
       images: [{ url: socialImage, width: 1200, height: 630 }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Shortlist",
-      description: "Your best-fit jobs. Ready every morning.",
+      description: "Private job review workspace.",
       images: [socialImage],
     },
   };

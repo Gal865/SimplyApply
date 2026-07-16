@@ -1,21 +1,13 @@
 # Shortlist
 
-Shortlist is a private daily job desk. It searches a connected job-data provider for LinkedIn and Indeed listings, ranks them around a saved search profile, and uses OpenRouter to draft a cover letter grounded in resume text.
+Shortlist is a private job-review workspace. It retrieves jobs from a connected provider, prepares resume-grounded cover letters through OpenRouter before displaying the jobs, and stores profiles, jobs, statuses, and letters in Supabase.
 
-## Connect the services
+See [SETUP.md](SETUP.md) for exact Supabase and API-key instructions.
 
-1. Copy `.env.example` to `.env.local` and add the server-side values.
-2. Run `supabase/schema.sql` in the Supabase SQL editor.
-3. Subscribe to JSearch on RapidAPI and add its key as `JSEARCH_API_KEY`.
-4. Add an OpenRouter key and the model id you want to use.
-
-The Supabase service-role key and both provider keys must remain server-side. The browser calls only this app's API routes.
+Without the required server environment variables, the interface runs in clearly labeled demo mode. No daily scheduler is currently installed.
 
 ## Run locally
 
 ```powershell
-$env:WRANGLER_LOG_PATH='.wrangler/wrangler.log'
-npx.cmd vinext dev
+npm.cmd run dev
 ```
-
-The interface uses preview jobs and a safe template letter until the provider keys are connected.

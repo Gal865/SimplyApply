@@ -1,16 +1,39 @@
+import { createCoverLetter, demoCoverLetter } from "../../../../lib/cover-letter";
 import { ownerEmail, supabaseConfigured, upsertRows } from "../../../../lib/supabase-rest";
 
-const previewJobs = [
-  { id: "stripe-product-engineer", source: "LinkedIn", title: "Product Engineer, New Grad", company: "Stripe", location: "New York, NY", workMode: "Hybrid", salary: "$132k–$198k", posted: "2h ago", match: 96, reasons: ["TypeScript", "Product thinking", "Early career"], description: "Build and ship polished product experiences across Stripe's platform. Partner with design and product, work across the stack, and turn ambiguous customer problems into reliable software.", applyUrl: "https://www.linkedin.com/jobs/" },
-  { id: "notion-frontend-engineer", source: "Indeed", title: "Frontend Software Engineer", company: "Notion", location: "New York, NY", workMode: "Hybrid", salary: "$135k–$185k", posted: "5h ago", match: 93, reasons: ["React", "Design systems", "Collaboration"], description: "Create fast, thoughtful interfaces used by teams around the world. Own features end to end and collaborate closely with designers.", applyUrl: "https://www.indeed.com/" },
-  { id: "figma-software-engineer", source: "LinkedIn", title: "Software Engineer, Growth", company: "Figma", location: "United States", workMode: "Remote", salary: "$128k–$170k", posted: "Today", match: 91, reasons: ["Full-stack", "Experimentation", "User focus"], description: "Develop product-led growth experiences and work with a cross-functional team to help more people succeed with collaborative design tools.", applyUrl: "https://www.linkedin.com/jobs/" },
-  { id: "ramp-associate-engineer", source: "Indeed", title: "Associate Software Engineer", company: "Ramp", location: "New York, NY", workMode: "On-site", salary: "$110k–$145k", posted: "1d ago", match: 88, reasons: ["Python", "APIs", "Fast-paced team"], description: "Help build financial tools that save businesses time. Work across APIs and user-facing workflows in a high-ownership environment.", applyUrl: "https://www.indeed.com/" },
-  { id: "linear-web-engineer", source: "LinkedIn", title: "Web Engineer", company: "Linear", location: "United States", workMode: "Remote", salary: "$120k–$175k", posted: "1d ago", match: 86, reasons: ["React", "Performance", "Craft"], description: "Build high-quality web experiences with a focus on speed, interaction detail, and maintainable systems.", applyUrl: "https://www.linkedin.com/jobs/" },
+type Job = {
+  id: string;
+  source: "LinkedIn" | "Indeed";
+  title: string;
+  company: string;
+  location: string;
+  workMode: string;
+  salary: string;
+  posted: string;
+  match: number;
+  reasons: string[];
+  description: string;
+  applyUrl: string;
+  coverLetter: string;
+  isDemo?: boolean;
+};
+
+const demoBase = [
+  { id: "demo-stripe-product-engineer", source: "LinkedIn" as const, title: "Product Engineer, New Grad", company: "Stripe", location: "New York, NY", workMode: "Hybrid", salary: "$132k–$198k", posted: "Demo", match: 96, reasons: ["TypeScript", "Product thinking", "Early career"], description: "Demonstration job description. This is not a current listing.", applyUrl: "https://www.linkedin.com/jobs/" },
+  { id: "demo-notion-frontend-engineer", source: "Indeed" as const, title: "Frontend Software Engineer", company: "Notion", location: "New York, NY", workMode: "Hybrid", salary: "$135k–$185k", posted: "Demo", match: 93, reasons: ["React", "Design systems", "Collaboration"], description: "Demonstration job description. This is not a current listing.", applyUrl: "https://www.indeed.com/" },
+  { id: "demo-figma-software-engineer", source: "LinkedIn" as const, title: "Software Engineer, Growth", company: "Figma", location: "United States", workMode: "Remote", salary: "$128k–$170k", posted: "Demo", match: 91, reasons: ["Full-stack", "Experimentation", "User focus"], description: "Demonstration job description. This is not a current listing.", applyUrl: "https://www.linkedin.com/jobs/" },
+  { id: "demo-ramp-associate-engineer", source: "Indeed" as const, title: "Associate Software Engineer", company: "Ramp", location: "New York, NY", workMode: "On-site", salary: "$110k–$145k", posted: "Demo", match: 88, reasons: ["Python", "APIs", "Fast-paced team"], description: "Demonstration job description. This is not a current listing.", applyUrl: "https://www.indeed.com/" },
 ];
+
+const demoJobs: Job[] = demoBase.map((job) => ({
+  ...job,
+  isDemo: true,
+  coverLetter: demoCoverLetter(job),
+}));
 
 type ProviderJob = Record<string, unknown>;
 
-function sourceFor(job: ProviderJob) {
+function sourceFor(job: ProviderJob): "LinkedIn" | "Indeed" {
   const text = `${job.job_publisher || ""} ${job.job_apply_link || ""}`.toLowerCase();
   return text.includes("indeed") ? "Indeed" : "LinkedIn";
 }
@@ -23,7 +46,7 @@ function salaryFor(job: ProviderJob) {
   return min && max ? `${compact(min)}–${compact(max)}` : `${compact(min || max)}+`;
 }
 
-function normalize(job: ProviderJob, index: number) {
+function normalize(job: ProviderJob, index: number): Omit<Job, "coverLetter"> {
   const location = [job.job_city, job.job_state].filter(Boolean).join(", ") || String(job.job_country || "Remote");
   return {
     id: String(job.job_id || `job-${index}`),
@@ -41,7 +64,18 @@ function normalize(job: ProviderJob, index: number) {
   };
 }
 
-async function saveJobs(request: Request, jobs: ReturnType<typeof normalize>[] | typeof previewJobs, title: string, location: string) {
+async function attachLetters(jobs: Array<Omit<Job, "coverLetter">>, resumeText: string): Promise<Job[]> {
+  return Promise.all(
+    jobs.map(async (job) => ({
+      ...job,
+      coverLetter:
+        (await createCoverLetter(job, resumeText)) ||
+        "Cover letter unavailable. Connect OpenRouter and add your resume, then refresh the job list.",
+    })),
+  );
+}
+
+async function saveJobs(request: Request, jobs: Job[], title: string, location: string) {
   if (!supabaseConfigured()) return;
   const email = ownerEmail(request);
   await upsertRows("profiles?on_conflict=owner_email", {
@@ -63,6 +97,7 @@ async function saveJobs(request: Request, jobs: ReturnType<typeof normalize>[] |
     description: job.description,
     match_score: job.match,
     match_reasons: job.reasons,
+    cover_letter: job.coverLetter,
     status: "new",
     last_seen_at: new Date().toISOString(),
   })), "owner_email,external_id");
@@ -72,12 +107,10 @@ export async function POST(request: Request) {
   const body = await request.json();
   const title = String(body.targetTitle || "Software Engineer").slice(0, 180);
   const location = String(body.location || "United States").slice(0, 180);
+  const resumeText = String(body.resumeText || "").slice(0, 30000);
   const apiKey = process.env.JSEARCH_API_KEY;
 
-  if (!apiKey) {
-    await saveJobs(request, previewJobs, title, location);
-    return Response.json({ mode: "preview", jobs: previewJobs });
-  }
+  if (!apiKey) return Response.json({ mode: "demo", jobs: demoJobs });
 
   const params = new URLSearchParams({
     query: `${title} jobs in ${location} from LinkedIn and Indeed`,
@@ -86,15 +119,13 @@ export async function POST(request: Request) {
     date_posted: "week",
   });
   const response = await fetch(`https://jsearch.p.rapidapi.com/search?${params}`, {
-    headers: {
-      "X-RapidAPI-Key": apiKey,
-      "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-    },
+    headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": "jsearch.p.rapidapi.com" },
   });
   if (!response.ok) return Response.json({ error: "The job provider is temporarily unavailable." }, { status: 502 });
 
-  const payload = await response.json() as { data?: ProviderJob[] };
-  const jobs = (payload.data || []).slice(0, 12).map(normalize);
+  const payload = (await response.json()) as { data?: ProviderJob[] };
+  const normalized = (payload.data || []).slice(0, 6).map(normalize);
+  const jobs = await attachLetters(normalized, resumeText);
   await saveJobs(request, jobs, title, location);
   return Response.json({ mode: "live", jobs });
 }

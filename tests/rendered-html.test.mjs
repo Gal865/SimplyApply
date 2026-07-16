@@ -17,7 +17,8 @@ test("server-renders the Shortlist product", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Shortlist/);
-  assert.match(html, /Your daily job desk/);
-  assert.match(html, /Good morning/);
+  assert.match(html, /Job review/);
+  assert.match(html, /Jobs to review/);
+  assert.match(html, /Demo mode/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
