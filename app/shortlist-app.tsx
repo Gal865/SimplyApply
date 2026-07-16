@@ -92,8 +92,6 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
     return jobs;
   }, [activeTab, jobs]);
 
-  const resumePercent = profile.resumeText.trim().length > 120 ? 100 : profile.resumeText.trim() ? 55 : 0;
-
   function closeSettings() {
     if (settingsClosing) return;
     setSettingsClosing(true);
@@ -297,7 +295,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
         <div className="topbar-actions">
           {(!connections.supabase || !connections.jobs || !connections.openrouter) && <span className="demo-mode">Demo mode</span>}
           <Link className="resume-chip" href="/settings">
-            <span className="resume-dot" /> Resume · {resumePercent}%
+            Settings
           </Link>
         </div>
       </header>
@@ -381,7 +379,7 @@ export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean 
         </section>
       </main>
 
-      <footer><span>Simply Apply</span><p>Private job workspace</p><Link href="/settings">Connections & settings</Link></footer>
+      <footer><span>Simply Apply</span><p>Private job workspace</p><Link href="/settings">Settings</Link></footer>
 
       {settingsOpen && (
         <div className="dialog-root">
