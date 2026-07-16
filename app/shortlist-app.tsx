@@ -52,7 +52,9 @@ export function ShortlistApp() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "saved" | "applied">("today");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsClosing, setSettingsClosing] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [letterClosing, setLetterClosing] = useState(false);
   const [letter, setLetter] = useState("");
   const [connections, setConnections] = useState<ConnectionStatus>({ supabase: false, jobs: false, openrouter: false, automation: false });
   const [notice, setNotice] = useState("");
@@ -110,7 +112,26 @@ export function ShortlistApp() {
   function openSettings() {
     setDraftProfile(profile);
     setSettingsError("");
+    setSettingsClosing(false);
     setSettingsOpen(true);
+  }
+
+  function closeSettings() {
+    if (settingsClosing) return;
+    setSettingsClosing(true);
+    window.setTimeout(() => {
+      setSettingsOpen(false);
+      setSettingsClosing(false);
+    }, 260);
+  }
+
+  function closeLetter() {
+    if (letterClosing) return;
+    setLetterClosing(true);
+    window.setTimeout(() => {
+      setSelectedJob(null);
+      setLetterClosing(false);
+    }, 260);
   }
 
   async function saveInitialTitle(event: FormEvent<HTMLFormElement>) {
@@ -151,7 +172,7 @@ export function ShortlistApp() {
     }
     const savedProfile = { ...draftProfile, targetTitles };
     setProfile(savedProfile);
-    setSettingsOpen(false);
+    closeSettings();
     setNotice("Search profile saved. Finding matching jobs and preparing cover letters…");
     await fetch("/api/profile", {
       method: "POST",
@@ -192,6 +213,7 @@ export function ShortlistApp() {
   }
 
   function viewLetter(job: Job) {
+    setLetterClosing(false);
     setSelectedJob(job);
     setLetter(job.coverLetter);
   }
@@ -205,7 +227,7 @@ export function ShortlistApp() {
       body: JSON.stringify({ externalId: selectedJob.id, status: "applied" }),
     }).catch(() => undefined);
     setNotice(`${selectedJob.company} moved to Applied.`);
-    setSelectedJob(null);
+    closeLetter();
   }
 
   return (
@@ -310,9 +332,9 @@ export function ShortlistApp() {
       <footer><span>shortlist.</span><p>Private job workspace</p><button onClick={openSettings}>Connections & settings</button></footer>
 
       {settingsOpen && (
-        <div className="overlay" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && setSettingsOpen(false)}>
+        <div className={settingsClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={(event) => event.currentTarget === event.target && closeSettings()}>
           <section className="drawer settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <div className="drawer-header"><div><p className="eyebrow">Settings</p><h2 id="settings-title">Search profile</h2></div><button className="close-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div>
+            <div className="drawer-header"><div><p className="eyebrow">Settings</p><h2 id="settings-title">Search profile</h2></div><button className="close-button" onClick={closeSettings} aria-label="Close">×</button></div>
             <p className="drawer-intro">These fields control job search, matching, and the cover letters prepared during refresh.</p>
 
             <div className="connection-panel">
@@ -341,15 +363,15 @@ export function ShortlistApp() {
 
             <div className="daily-row"><div><span className="status-dot neutral" /><strong>Preferred run time</strong><small>Saved only; automation is not connected</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>
             {settingsError && <p className="form-error">{settingsError}</p>}
-            <div className="drawer-footer"><button className="secondary-button" onClick={() => setSettingsOpen(false)}>Cancel</button><button className="primary-button" onClick={saveProfile}>Save & search <span>→</span></button></div>
+            <div className="drawer-footer"><button className="secondary-button" onClick={closeSettings}>Cancel</button><button className="primary-button" onClick={saveProfile}>Save & search <span>→</span></button></div>
           </section>
         </div>
       )}
 
       {selectedJob && (
-        <div className="overlay" role="presentation" onMouseDown={(event) => event.currentTarget === event.target && setSelectedJob(null)}>
+        <div className={letterClosing ? "overlay is-closing" : "overlay"} role="presentation" onMouseDown={(event) => event.currentTarget === event.target && closeLetter()}>
           <section className="drawer letter-drawer" role="dialog" aria-modal="true" aria-labelledby="letter-title">
-            <div className="drawer-header"><div><p className="eyebrow">Cover letter</p><h2 id="letter-title">{selectedJob.title}</h2><span>{selectedJob.company} · {selectedJob.location}</span></div><button className="close-button" onClick={() => setSelectedJob(null)} aria-label="Close">×</button></div>
+            <div className="drawer-header"><div><p className="eyebrow">Cover letter</p><h2 id="letter-title">{selectedJob.title}</h2><span>{selectedJob.company} · {selectedJob.location}</span></div><button className="close-button" onClick={closeLetter} aria-label="Close">×</button></div>
             <div className="letter-context">{selectedJob.isDemo && <span className="demo-label">Demo</span>}<span className={`source-pill ${selectedJob.source.toLowerCase()}`}>{selectedJob.source}</span><span>{selectedJob.match}% match estimate</span><span>{selectedJob.isDemo ? "Sample letter" : "OpenRouter"}</span></div>
             {selectedJob.isDemo && <div className="demo-warning">Demo letter. It is not based on your resume and is not ready to send.</div>}
             <textarea className="letter-paper" value={letter} onChange={(event) => setLetter(event.target.value)} aria-label="Prepared cover letter" />

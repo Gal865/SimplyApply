@@ -15,13 +15,14 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scroll-padding-top: 102px; }
 body {
   margin: 0;
   background: radial-gradient(circle at top left, #f8e9e3 0, transparent 31%), radial-gradient(circle at 88% 9%, #e9edf6 0, transparent 27%), var(--paper);
   color: var(--ink);
   font-family: "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 button, input, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -64,8 +65,10 @@ button { color: inherit; }
   letter-spacing: .08em;
   padding: 9px 14px;
   text-transform: uppercase;
+  transition: background .32s cubic-bezier(.22, .8, .2, 1), box-shadow .32s cubic-bezier(.22, .8, .2, 1), color .2s ease, transform .2s ease;
 }
 .tab.active { background: var(--card); box-shadow: 0 3px 9px rgba(67, 61, 52, .08); color: var(--ink); }
+.tab:not(.active):hover { color: var(--ink); transform: translateY(-1px); }
 .count { align-items: center; background: var(--ink); border-radius: 50%; color: white; display: inline-flex; font-size: 9px; height: 17px; justify-content: center; margin-left: 6px; width: 17px; }
 .resume-chip {
   align-items: center;
@@ -187,9 +190,11 @@ main { margin: 0 auto; max-width: 1240px; padding: 0 4vw 104px; }
   padding: 28px;
   position: relative;
   box-shadow: 0 8px 25px rgba(72, 64, 54, .045);
-  transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
+  animation: card-settle .42s cubic-bezier(.22, .8, .2, 1) both;
+  transition: transform .32s cubic-bezier(.22, .8, .2, 1), box-shadow .32s cubic-bezier(.22, .8, .2, 1), background .32s ease;
 }
 .job-card:hover { background: rgba(255, 254, 252, .98); box-shadow: 0 18px 38px rgba(72, 64, 54, .1); transform: translateY(-3px); }
+@keyframes card-settle { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .company-tile { align-items: center; background: linear-gradient(145deg, #f2eee8, #e8e9ee); border: 0; border-radius: 18px; color: #515e7e; display: flex; font-family: Georgia, serif; font-size: 21px; font-weight: 700; height: 54px; justify-content: center; }
 .job-body { min-width: 0; }
 .job-topline { align-items: center; color: #92938f; display: flex; font-size: 10px; gap: 10px; margin-bottom: 9px; }
@@ -226,9 +231,14 @@ footer > span { font-family: Georgia, serif; font-size: 21px; font-weight: 700; 
 footer p { color: #7b7d83; font-family: Georgia, serif; font-size: 13px; }
 footer button { background: none; border: 0; color: var(--ink-soft); cursor: pointer; font-size: 11px; text-decoration: underline; }
 
-.overlay { align-items: stretch; background: rgba(41, 48, 72, .28); display: flex; inset: 0; justify-content: flex-end; position: fixed; z-index: 50; backdrop-filter: blur(8px); }
-.drawer { animation: slide-in .28s ease-out; background: #faf8f4; box-shadow: -20px 0 60px rgba(36, 42, 60, .17); max-height: 100vh; overflow-y: auto; padding: 42px 44px; width: min(620px, 100%); }
-@keyframes slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+.overlay { align-items: stretch; animation: overlay-in .36s ease-out both; background: rgba(41, 48, 72, .28); display: flex; inset: 0; justify-content: flex-end; position: fixed; z-index: 50; backdrop-filter: blur(8px); }
+.overlay.is-closing { animation: overlay-out .26s ease-in both; pointer-events: none; }
+.drawer { animation: drawer-in .44s cubic-bezier(.22, .8, .2, 1) both; background: #faf8f4; box-shadow: -20px 0 60px rgba(36, 42, 60, .17); max-height: 100vh; overflow-y: auto; overscroll-behavior: contain; padding: 42px 44px; -webkit-overflow-scrolling: touch; width: min(620px, 100%); will-change: transform, opacity; }
+.overlay.is-closing .drawer { animation: drawer-out .26s cubic-bezier(.4, 0, 1, 1) both; }
+@keyframes overlay-in { from { background: rgba(41, 48, 72, 0); backdrop-filter: blur(0); } to { background: rgba(41, 48, 72, .28); backdrop-filter: blur(8px); } }
+@keyframes overlay-out { from { background: rgba(41, 48, 72, .28); backdrop-filter: blur(8px); } to { background: rgba(41, 48, 72, 0); backdrop-filter: blur(0); } }
+@keyframes drawer-in { from { opacity: 0; transform: translate3d(44px, 0, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes drawer-out { from { opacity: 1; transform: translate3d(0, 0, 0); } to { opacity: 0; transform: translate3d(28px, 0, 0); } }
 .drawer-header { align-items: flex-start; border-bottom: 1px solid rgba(229, 222, 213, .8); display: flex; justify-content: space-between; padding-bottom: 24px; }
 .drawer-header h2 { font-family: Georgia, serif; font-size: 35px; font-weight: 500; letter-spacing: -.03em; line-height: 1.08; margin: 0; }
 .drawer-header > div > span { color: var(--ink-soft); display: block; font-size: 12px; margin-top: 8px; }
@@ -338,5 +348,5 @@ footer button { background: none; border: 0; color: var(--ink-soft); cursor: poi
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
-  .drawer, .typing span { animation: none !important; }
+  .drawer, .overlay, .typing span, .job-card { animation: none !important; }
 }
