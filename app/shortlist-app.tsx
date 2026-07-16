@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type Job = {
   id: string;
@@ -46,7 +47,7 @@ const initialProfile: Profile = {
   dailyTime: "07:00",
 };
 
-export function ShortlistApp() {
+export function ShortlistApp({ settingsMode = false }: { settingsMode?: boolean }) {
   const [profile, setProfile] = useState(initialProfile);
   const [draftProfile, setDraftProfile] = useState(initialProfile);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -77,6 +78,10 @@ export function ShortlistApp() {
         setProfile(saved);
         setDraftProfile(saved);
         setInitialTitle(saved.targetTitles[0] || "");
+        const cachedJobs = sessionStorage.getItem("simply-apply-jobs");
+        if (cachedJobs) {
+          try { setJobs(JSON.parse(cachedJobs) as Job[]); } catch { sessionStorage.removeItem("simply-apply-jobs"); }
+        }
       })
       .catch(() => undefined);
   }, []);
@@ -88,6 +93,15 @@ export function ShortlistApp() {
   }, [activeTab, jobs]);
 
   const resumePercent = profile.resumeText.trim().length > 120 ? 100 : profile.resumeText.trim() ? 55 : 0;
+
+  function closeSettings() {
+    if (settingsClosing) return;
+    setSettingsClosing(true);
+    window.setTimeout(() => {
+      setSettingsOpen(false);
+      setSettingsClosing(false);
+    }, 220);
+  }
 
   async function findJobs(searchProfile = profile) {
     if (!searchProfile.targetTitles.length) {
@@ -102,27 +116,14 @@ export function ShortlistApp() {
         body: JSON.stringify(searchProfile),
       });
       const data = await response.json();
-      if (Array.isArray(data.jobs) && data.jobs.length) setJobs(data.jobs);
+      if (Array.isArray(data.jobs) && data.jobs.length) {
+        setJobs(data.jobs);
+        sessionStorage.setItem("simply-apply-jobs", JSON.stringify(data.jobs));
+      }
       setNotice(data.mode === "live" ? "Jobs and cover letters refreshed." : "Demo data refreshed. No job API is connected.");
     } catch {
       setNotice("Refresh failed. The labeled demo data is still shown.");
     }
-  }
-
-  function openSettings() {
-    setDraftProfile(profile);
-    setSettingsError("");
-    setSettingsClosing(false);
-    setSettingsOpen(true);
-  }
-
-  function closeSettings() {
-    if (settingsClosing) return;
-    setSettingsClosing(true);
-    window.setTimeout(() => {
-      setSettingsOpen(false);
-      setSettingsClosing(false);
-    }, 260);
   }
 
   function closeLetter() {
@@ -172,7 +173,6 @@ export function ShortlistApp() {
     }
     const savedProfile = { ...draftProfile, targetTitles };
     setProfile(savedProfile);
-    closeSettings();
     setNotice("Search profile saved. Finding matching jobs and preparing cover letters…");
     await fetch("/api/profile", {
       method: "POST",
@@ -230,6 +230,58 @@ export function ShortlistApp() {
     closeLetter();
   }
 
+  if (settingsMode) {
+    return (
+      <div className="app-shell">
+        <header className="topbar settings-topbar">
+          <Link className="wordmark" href="/" aria-label="Simply Apply home">Simply <span>Apply</span></Link>
+          <span className="settings-label">Settings</span>
+          <Link className="resume-chip" href="/"><span aria-hidden="true">←</span> Back to jobs</Link>
+        </header>
+        <main className="settings-main">
+          <section className="settings-page-heading">
+            <p className="eyebrow">Your preferences</p>
+            <h1>Search settings</h1>
+            <p>Fine-tune what Simply Apply looks for and use to prepare your cover letters.</p>
+          </section>
+          <section className="settings-page-panel">
+            <div className="drawer-header"><div><p className="eyebrow">Search profile</p><h2>What to look for</h2></div></div>
+            <p className="drawer-intro">These fields control job search, matching, and the cover letters prepared during refresh.</p>
+
+            <div className="connection-panel">
+              <div className="connection-heading"><strong>Server connections</strong><span>Keys are never entered on this page</span></div>
+              <div className="connection-list">
+                <span>Supabase <i className={connections.supabase ? "connected" : "missing"}>{connections.supabase ? "Connected" : "Not connected"}</i></span>
+                <span>Job API <i className={connections.jobs ? "connected" : "missing"}>{connections.jobs ? "Connected" : "Not connected"}</i></span>
+                <span>OpenRouter <i className={connections.openrouter ? "connected" : "missing"}>{connections.openrouter ? "Connected" : "Not connected"}</i></span>
+                <span>Daily automation <i className="missing">Not configured</i></span>
+              </div>
+              <small>Add these as server environment variables using the setup guide in the project.</small>
+            </div>
+
+            <label className="field"><span>Job titles</span><textarea className="job-titles-input" value={draftProfile.targetTitles.join("\n")} onChange={(event) => setDraftProfile({ ...draftProfile, targetTitles: event.target.value.split("\n") })} placeholder={"One exact title per line\ne.g. Product Designer\ne.g. UX Designer"} rows={4} /><small>JSearch runs a separate search for each title when you save.</small></label>
+            <label className="field"><span>Location</span><input value={draftProfile.location} onChange={(event) => setDraftProfile({ ...draftProfile, location: event.target.value })} placeholder="City or Anywhere" /></label>
+            <fieldset className="field"><legend>Work style</legend><div className="choice-row">{["Remote", "Hybrid", "On-site"].map((mode) => <button type="button" key={mode} className={draftProfile.workModes.includes(mode) ? "choice active" : "choice"} onClick={() => setDraftProfile((current) => ({ ...current, workModes: current.workModes.includes(mode) ? current.workModes.filter((item) => item !== mode) : [...current.workModes, mode] }))}>{mode}</button>)}</div></fieldset>
+
+            <div className="resume-section">
+              <div className="resume-heading"><div><span>Resume</span><small>Used only to rank jobs and write your letters</small></div></div>
+              <label className="resume-upload-box">
+                <input type="file" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" onChange={uploadResume} disabled={isUploadingResume} />
+                <span className="upload-icon" aria-hidden="true">↑</span>
+                {isUploadingResume ? <><strong>Uploading your resume…</strong><small>Reading and storing it privately</small></> : draftProfile.resumeFileName ? <><strong>{draftProfile.resumeFileName}</strong><small>Uploaded privately · Choose a different file</small></> : <><strong>Upload your resume</strong><small>PDF, DOCX, TXT, or MD · up to 10 MB</small></>}
+              </label>
+            </div>
+
+            <div className="daily-row"><div><span className="status-dot neutral" /><strong>Preferred run time</strong><small>Saved only; automation is not connected</small></div><label><span>at</span><input type="time" value={draftProfile.dailyTime} onChange={(event) => setDraftProfile({ ...draftProfile, dailyTime: event.target.value })} /></label></div>
+            {settingsError && <p className="form-error">{settingsError}</p>}
+            {notice && <div className="notice settings-notice" role="status">{notice}</div>}
+            <div className="settings-page-actions"><Link className="secondary-button" href="/">Cancel</Link><button className="primary-button" onClick={saveProfile}>Save & search <span>→</span></button></div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -244,9 +296,9 @@ export function ShortlistApp() {
         </nav>
         <div className="topbar-actions">
           {(!connections.supabase || !connections.jobs || !connections.openrouter) && <span className="demo-mode">Demo mode</span>}
-          <button className="resume-chip" onClick={openSettings}>
+          <Link className="resume-chip" href="/settings">
             <span className="resume-dot" /> Resume · {resumePercent}%
-          </button>
+          </Link>
         </div>
       </header>
 
@@ -322,14 +374,14 @@ export function ShortlistApp() {
                 </article>
               ))}
               {!visibleJobs.length && (
-                <div className="empty-state"><span>＋</span><h3>{profile.targetTitles.length ? "Nothing here yet" : "Add your job titles"}</h3><p>{profile.targetTitles.length ? "Your saved titles did not return a matching role yet." : "Tell Simply Apply the exact roles you want, then save to begin the search and prepare cover letters."}</p><button onClick={profile.targetTitles.length ? () => setActiveTab("today") : openSettings}>{profile.targetTitles.length ? "Back to today" : "Add job titles"}</button></div>
+                <div className="empty-state"><span>＋</span><h3>{profile.targetTitles.length ? "Nothing here yet" : "Add your job titles"}</h3><p>{profile.targetTitles.length ? "Your saved titles did not return a matching role yet." : "Tell Simply Apply the exact roles you want, then save to begin the search and prepare cover letters."}</p>{profile.targetTitles.length ? <button onClick={() => setActiveTab("today")}>Back to today</button> : <Link href="/settings">Add job titles</Link>}</div>
               )}
             </div>
           </div>
         </section>
       </main>
 
-      <footer><span>Simply Apply</span><p>Private job workspace</p><button onClick={openSettings}>Connections & settings</button></footer>
+      <footer><span>Simply Apply</span><p>Private job workspace</p><Link href="/settings">Connections & settings</Link></footer>
 
       {settingsOpen && (
         <div className="dialog-root">
